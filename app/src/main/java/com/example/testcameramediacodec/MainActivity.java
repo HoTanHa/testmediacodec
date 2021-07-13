@@ -110,70 +110,37 @@ public class MainActivity extends AppCompatActivity {
 
         TextView tv = findViewById(R.id.sample_text);
         tv.setText(stringFromJNI());
-
-//        new Thread(() -> {
-//
-//            encoderH264 = new EncoderH264_thread(MainActivity.this);
-//            encoderH264.configure();
-//            encoderH264.setEncodeCallback(new EncoderH264_thread.EncodeCallback() {
-//                @Override
-//                public void onEncodeFormatChange(MediaFormat videoFormat) {
-//
-//                }
-//
-//                @Override
-//                public void onDataVideoEncodeOutput(ByteBuffer buffer, MediaCodec.BufferInfo info) {
-//
-//                }
-//            });
-//            checkLogicalMultiCamera();
-//            cameraManager = (CameraManager) MainActivity.this.getSystemService(Context.CAMERA_SERVICE);
-//            cameraObj = new CameraObj(MainActivity.this,
-//                    cameraId,
-//                    encoderH264.getEncodeSurface(),
-//                    MainActivity.this.getExternalFilesDir(null).getAbsolutePath());
-//            cameraObj.setCameraObjCallback(new CameraObj.CameraObjCallback() {
-//                @Override
-//                public void cameraOpened() {
-//                    Log.d(TAG, "cameraOpened: ");
-//                }
-//
-//                @Override
-//                public void cameraError() {
-//                    Log.d(TAG, "cameraError: ");
-//
-//                }
-//
-//                @Override
-//                public void cameraDisconnected() {
-//                    Log.d(TAG, "cameraDisconnected: ");
-//                }
-//
-//                @Override
-//                public void onPhotoComplete(String path) {
-//
-//                }
-//
-//                @Override
-//                public void onDataCamera(byte[] data) {
-//                    encoderH264.encode(data);
-//                }
-//            });
-//            cameraObj.openCamera();
-//        }).start();
         checkLogicalMultiCamera();
         cameraEncode = new CameraEncode(this.getApplicationContext(), cameraId,
-                Environment.getExternalStorageDirectory().getPath());
+        Environment.getExternalStorageDirectory().getPath());
 
         cameraEncode.configure();
 
         new Timer().schedule(new TimerTask() {
             @Override
             public void run() {
+
                 cameraEncode.closeFileMP4();;
                 cameraEncode.saveFileMP4();
             }
-        },  1000, 30000);
+        },  10000, 30000);
+
+
+
+        byte[] arr = new byte[20];
+        StringBuilder debug1 = new StringBuilder();
+        for (byte item : arr) {
+            item = 0x00;
+            debug1.append(item).append(" ");
+        }
+        Log.d(TAG, "onCreate: begin:  " + debug1.toString());
+        this.changeByteArray(arr);
+
+        StringBuilder debug2 = new StringBuilder();
+        for (byte item : arr) {
+            debug2.append(item).append(" ");
+        }
+        Log.d(TAG, "onCreate: change:  " + debug2.toString());
     }
 
     private Timer timeWebSocket;
@@ -336,12 +303,12 @@ public class MainActivity extends AppCompatActivity {
                 if (cameraCharacteristics.get(CameraCharacteristics.LENS_FACING) ==
                         CameraCharacteristics.LENS_FACING_FRONT) {
                     cameraIdFront = id;
-                    Log.d(TAG, "checkLogicalMultiCamera: camera front.." + id );
+                    Log.d(TAG, "checkLogicalMultiCamera: camera front.." + id);
                 }
                 if (cameraCharacteristics.get(CameraCharacteristics.LENS_FACING) ==
                         CameraCharacteristics.LENS_FACING_BACK) {
                     cameraId = id;
-                    Log.d(TAG, "checkLogicalMultiCamera: camera back..."  + id);
+                    Log.d(TAG, "checkLogicalMultiCamera: camera back..." + id);
                 }
             }
         }
@@ -355,8 +322,12 @@ public class MainActivity extends AppCompatActivity {
      * which is packaged with this application.
      */
     public native String stringFromJNI();
+
     public static native byte[] getbByteInfo();
 
     public static native void drawDataToSurface(byte[] dataImage, Surface surface);
+
     public static native void setSurfaceFormat(Surface surface);
+
+    private native void changeByteArray(byte[] array);
 }

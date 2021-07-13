@@ -1,3 +1,4 @@
 include ':rtmp-client'
+include ':mylibcommon'
 include ':app'
 rootProject.name = "testCameraMediaCodeC"

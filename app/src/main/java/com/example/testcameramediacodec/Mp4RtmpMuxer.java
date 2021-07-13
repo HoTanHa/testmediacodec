@@ -60,7 +60,10 @@ public class Mp4RtmpMuxer {
         videoWidth = format.getInteger("width");
     }
 
-    public void startSaveMp4(String folder) {
+    public synchronized void startSaveMp4(String folder) {
+        if (videoFormat==null){
+            return;
+        }
         folderPath = folder;
         if (folderPath == null) {
             throw new RuntimeException("Folder path is null");
@@ -84,7 +87,7 @@ public class Mp4RtmpMuxer {
         muxerCallback.createMuxerFileComplete();
     }
 
-    public void stopSaveMp4() {
+    public synchronized void stopSaveMp4() {
         muxerLock.lock();
         mMuxerStarted = false;
         if (mMediaMuxer != null) {

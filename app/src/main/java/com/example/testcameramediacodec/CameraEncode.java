@@ -22,6 +22,7 @@ public class CameraEncode {
 
     private String videoPath;
     private String imagePath;
+    private MediaFormat format;
 
     private Context context;
     private String folder;
@@ -48,6 +49,7 @@ public class CameraEncode {
         encoderH264.setEncodeCallback(new EncoderH264_thread.EncodeCallback() {
             @Override
             public void onEncodeFormatChange(MediaFormat videoFormat) {
+                format = videoFormat;
                 if (muxer != null) {
                     muxer.setVideoFormat(videoFormat);
                 }
@@ -99,9 +101,9 @@ public class CameraEncode {
 
             @Override
             public void onDataCamera(byte[] data) {
-        if (encodeInputSurface!=null) {
-            MainActivity.drawDataToSurface(data, encodeInputSurface);
-        }
+                if (encodeInputSurface != null) {
+                    MainActivity.drawDataToSurface(data, encodeInputSurface);
+                }
             }
         });
         cameraObj.openCamera();
@@ -110,6 +112,9 @@ public class CameraEncode {
     public void saveFileMP4() {
 
         if (muxer != null) {
+            if (format != null) {
+                muxer.setVideoFormat(format);
+            }
             muxer.stopSaveMp4();
             muxer.startSaveMp4(videoPath);
         }

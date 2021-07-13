@@ -51,6 +51,7 @@ Java_com_example_testcameramediacodec_MainActivity_getbByteInfo(JNIEnv *env, jcl
 #define        LIKELY(x)                    ((__builtin_expect(!!(x), 1)))    // x is likely true
 #define        UNLIKELY(x)                    ((__builtin_expect(!!(x), 0)))    // x is likely false
 
+uint8_t *buffer360[640 * 360 * 2];
 
 extern "C"
 JNIEXPORT void JNICALL
@@ -68,30 +69,71 @@ Java_com_example_testcameramediacodec_MainActivity_drawDataToSurface(JNIEnv *env
 	count++;
 	ANativeWindow_Buffer buffer;
 	ARect aRect;
-//	if (ANativeWindow_lock(preview_window, &buffer, NULL) == 0) {
-		if (ANativeWindow_lock(preview_window, &buffer, &aRect) == 0) {
+	if (ANativeWindow_lock(preview_window, &buffer, NULL) == 0) {
 		if (count == 200) {
 			count = 0;
-			LOGI("%d --- %d ---- %d ---- %d ...aRect: %d..%d..%d..%d", buffer.format, buffer.stride, buffer.width,
+			LOGI("%d --- %d ---- %d ---- %d ...aRect: %d..%d..%d..%d", buffer.format, buffer.stride,
+				 buffer.width,
 				 buffer.height, aRect.left, aRect.right, aRect.top, aRect.bottom);
 		}
 		uint8_t *src = (uint8_t *) data;
+//		auto *dest = (uint8_t *) buffer.bits;
+//		memcpy(dest, src, SIZE_IMAGE);
+//		auto *sUV = src + SIZE_IMAGE;
+//		auto *dCrCb = dest + (SIZE_IMAGE + 1280 * 16);
+//		memcpy(dCrCb, sUV, SIZE1 * 2);
+//		ANativeWindow_unlockAndPost(preview_window);
+
+		auto *sY0 = (uint8_t *) data;
+		auto *sY1 = (uint8_t *) (data + 1280);
+		auto *sUV0 = data + SIZE_IMAGE;
+		auto *sUV1 = data + SIZE_IMAGE + 1280;
+		auto *d360 = (uint8_t *) buffer360;
+		auto *dUV = (uint8_t *) (buffer360 + 360 * 640);
+		for (int i = 0; i < 12; ++i) {
+			for (int j = 0; j < 640 / 2; ++j) {
+				*d360 = (sY0[0] + sY0[1] + sY1[0] + sY1[0]) / 4;
+				d360++;
+				*d360 = (sY0[2] + sY0[3] + sY1[2] + sY1[3]) / 4;
+				d360++;
+				sY0 += 4;
+				sY1 += 4;
+				*(dUV++) = (sUV0[0]);// + sUV0[2] + sUV1[0] + sUV1[2]) / 4;
+				*(dUV++) = (sUV0[1]);// + sUV0[3] + sUV1[1] + sUV1[3]) / 4;
+				sUV0 += 4;
+				sUV1 += 4;
+			}
+			sY0 += 1280;
+			sY1 += 1280;
+			sUV0 += 1280;
+			sUV1 += 1280;
+		}
+		for (int i = 12; i < 360; ++i) {
+			for (int j = 0; j < 640 / 2; ++j) {
+				*d360 = *sY0;
+				d360++;
+				sY0 += 2;
+				*d360 = *sY0;
+				d360++;
+				sY0 += 2;
+				*(dUV++) = (sUV0[0]); //+ sUV0[2] + sUV1[0] + sUV1[2]) / 4;
+				*(dUV++) = (sUV0[1]);// + sUV0[3] + sUV1[1] + sUV1[3]) / 4;
+				sUV0 += 4;
+				sUV1 += 4;
+			}
+			sY0 += 1280;
+			sUV0 += 1280;
+			sUV1 += 1280;
+		}
+
 		auto *dest = (uint8_t *) buffer.bits;
-		memcpy(dest, src, SIZE_IMAGE);
-		auto *sUV = src + SIZE_IMAGE;
-		auto *sU = src + SIZE_IMAGE;
-		auto *sV = src + SIZE_IMAGE + SIZE1;
-		auto *dCrCb = dest + (SIZE_IMAGE+ 1280*16);
-		memcpy(dCrCb, sUV, SIZE1*2);
-//		for (int i = 0; i < SIZE1; ++i) {
-//			*dCrCb = *sU;
-//			dCrCb++;
-//			sU++;
-//			*dCrCb = *sV;
-//			dCrCb++;
-//			sV++;
-//		}
+		memcpy(dest, buffer360, 640 * 360);
+		auto *sUV360 = buffer360 + 360 * 640;
+		auto *dCrCb = dest + (640 * (360 + 24));
+		memcpy(dCrCb, sUV360, 640 * 360 / 2);
 		ANativeWindow_unlockAndPost(preview_window);
+
+
 	} else {
 
 	}
@@ -106,8 +148,23 @@ Java_com_example_testcameramediacodec_MainActivity_setSurfaceFormat(JNIEnv *env,
 
 	ANativeWindow *preview_window = surface ? ANativeWindow_fromSurface(env, surface) : NULL;
 //	ANativeWindow_setBuffersDataSpace()
+//	int32_t res = ANativeWindow_setBuffersGeometry(preview_window,
+//												   1280, 720,
+//												   AHARDWAREBUFFER_FORMAT_Y8Cb8Cr8_420);
 	int32_t res = ANativeWindow_setBuffersGeometry(preview_window,
-												   1280, 720,
+												   640, 360,
 												   AHARDWAREBUFFER_FORMAT_Y8Cb8Cr8_420);
 	LOGI("result set Buffer Geometry: %d..", res);
+}
+
+extern "C"
+JNIEXPORT void JNICALL
+Java_com_example_testcameramediacodec_MainActivity_changeByteArray(JNIEnv *env, jobject thiz,
+																   jbyteArray array) {
+	// TODO: implement changeByteArray()
+	jbyte *byteArray = env->GetByteArrayElements(array, NULL);
+	for (int i = 0; i < 10; i++) {
+		byteArray[i] = i;
+	}
+	env->ReleaseByteArrayElements(array, byteArray, 0);
 }

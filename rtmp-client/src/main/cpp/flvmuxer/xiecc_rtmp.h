@@ -4,10 +4,12 @@
 
 #ifndef _XIECC_RTMP_H_
 #define _XIECC_RTMP_H_
+
 #include <stdint.h>
 #include <stdbool.h>
-#include "rtmp.h"
-#include "log.h"
+#include "../librtmp/log.h"
+#include "../librtmp/rtmp.h"
+
 #ifdef __cplusplus
 extern "C"{
 #endif
@@ -16,36 +18,41 @@ extern "C"{
 #define RTMP_STREAM_PROPERTY_ALARM       0x00000002
 #define RTMP_STREAM_PROPERTY_RECORD      0x00000004
 
+#define RTMP_FRAME_SIZE_MAX 262144
 
-int rtmp_open_for_write(RTMP *rtmp, const char *url, uint32_t video_width, uint32_t video_height);
+int rtmp_open_for_write(RTMP *rtmp, char *url, uint32_t video_width, uint32_t video_height);
 
 int rtmp_close(RTMP *rtmp);
 
 int rtmp_is_connected(RTMP *rtmp);
 
-// @brief send audio frame
-// @param [in] rtmp_sender handler
-// @param [in] data       : AACAUDIODATA
-// @param [in] size       : AACAUDIODATA size
-// @param [in] dts_us     : decode timestamp of frame
+/*******************************************************
+* @brief send audio frame
+* @param [in] rtmp_sender handler
+* @param [in] data       : AACAUDIODATA
+* @param [in] size       : AACAUDIODATA size
+* @param [in] dts_us     : decode timestamp of frame
+*******************************************************/
 int rtmp_sender_write_audio_frame(RTMP *rtmp, uint8_t *data,
-                                  int size,
-                                  uint64_t dts_us,
-                                  uint32_t abs_ts);
+								  int size,
+								  uint64_t dts_us,
+								  uint32_t abs_ts);
 
-// @brief send video frame, now only H264 supported
-// @param [in] rtmp_sender handler
-// @param [in] data       : video data, (Full frames are required)
-// @param [in] size       : video data size
-// @param [in] dts_us     : decode timestamp of frame
-// @param [in] key        : key frame indicate, [0: non key] [1: key]
+/*****************************************************
+* @brief send video frame, now only H264 supported
+* @param [in] rtmp_sender handler
+* @param [in] data       : video data, (Full frames are required)
+* @param [in] size       : video data size
+* @param [in] dts_us     : decode timestamp of frame
+* @param [in] key        : key frame indicate, [0: non key] [1: key]
+***********************************************************/
 int rtmp_sender_write_video_frame(RTMP *rtmp, uint8_t *data,
-                                  int size,
-                                  uint64_t dts_us,
-                                  int key,
-                                  uint32_t abs_ts);
+								  uint32_t size,
+								  int timeStamp,
+								  int key,
+								  uint32_t abs_ts);
 
-int rtmp_read_date(RTMP *rtmp, uint8_t* data, int size);
+int rtmp_read_date(RTMP *rtmp, uint8_t *data, int size);
 
 void flv_file_open(const char *filename);
 
