@@ -14,7 +14,7 @@ public class EncoderStream {
     private static final String TAG = "EncoderStream";
 
     private static final String ENCODE_VIDEO_TYPE = MediaFormat.MIMETYPE_VIDEO_AVC; // H.264 AVC encoding
-    private static final int FRAME_RATE = 5; // 30fps
+    private static final int FRAME_RATE = 10; // 30fps
     private static final int I_FRAME_INTERVAL = 1;
     private static final int BIT_RATE_VIDEO = 450000;
     private static final int MAX_BIT_RATE_VIDEO = 500000;

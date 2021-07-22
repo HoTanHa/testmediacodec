@@ -168,3 +168,28 @@ Java_com_example_testcameramediacodec_MainActivity_changeByteArray(JNIEnv *env, 
 	}
 	env->ReleaseByteArrayElements(array, byteArray, 0);
 }
+
+#include <camera/NdkCameraManager.h>
+extern "C"
+JNIEXPORT void JNICALL
+Java_com_example_testcameramediacodec_MainActivity_nCheckCamera(JNIEnv *env, jobject thiz) {
+	// TODO: implement nCheckCamera()
+	ACameraManager *camManager = ACameraManager_create();
+	ACameraIdList *cameraIds = nullptr;
+	ACameraManager_getCameraIdList(camManager, &cameraIds);
+
+	LOGI("Num of camera get by nkd: %d", cameraIds->numCameras);
+//	for (int i = 0; i < cameraIds->numCameras; ++i)
+//	{
+//		const char* id = cameraIds->cameraIds[i];
+//		ACameraMetadata* metadataObj;
+//		ACameraManager_getCameraCharacteristics(camManager, id, &metadataObj);
+//
+////		LOGI()
+//		ACameraMetadata_free(metadataObj);
+//
+//	}
+	ACameraManager_deleteCameraIdList(cameraIds);
+
+	ACameraManager_delete(camManager);
+}

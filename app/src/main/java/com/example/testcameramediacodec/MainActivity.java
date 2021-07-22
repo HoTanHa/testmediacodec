@@ -35,6 +35,9 @@ import android.widget.Button;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import com.example.mylibcommon.CommonFunction;
+import com.example.mylibcommon.NativeCamera;
+
 import org.java_websocket.client.WebSocketClient;
 import org.java_websocket.framing.CloseFrame;
 import org.java_websocket.handshake.ServerHandshake;
@@ -46,6 +49,7 @@ import java.net.URISyntaxException;
 import java.nio.ByteBuffer;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.Date;
 import java.util.List;
 import java.util.Set;
 import java.util.Timer;
@@ -83,7 +87,6 @@ public class MainActivity extends AppCompatActivity {
     private int countTimer_takePhoto = 0;
 
     CameraObj cameraObj = null;
-    EncoderH264_thread encoderH264 = null;
     CameraEncode cameraEncode = null;
     private final boolean notUseService = false;
     private WebSocketClient webSocketClient;
@@ -108,40 +111,93 @@ public class MainActivity extends AppCompatActivity {
         btnCloseWebSk = this.findViewById(R.id.btnCloseWebsk);
 
 
+        if (ContextCompat.checkSelfPermission(getApplicationContext(), Manifest.permission.CAMERA) !=
+                PackageManager.PERMISSION_GRANTED) {
+            ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.CAMERA},
+                    50);
+        }
+        if (ContextCompat.checkSelfPermission(this, Manifest.permission.CAMERA) != PackageManager.PERMISSION_GRANTED) {
+            ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.CAMERA}, 50);
+        }
+
         TextView tv = findViewById(R.id.sample_text);
         tv.setText(stringFromJNI());
-        checkLogicalMultiCamera();
-        cameraEncode = new CameraEncode(this.getApplicationContext(), cameraId,
-        Environment.getExternalStorageDirectory().getPath());
-
-        cameraEncode.configure();
-
-        new Timer().schedule(new TimerTask() {
-            @Override
-            public void run() {
-
-                cameraEncode.closeFileMP4();;
-                cameraEncode.saveFileMP4();
-            }
-        },  10000, 30000);
+        threadTest.start();
 
 
+//        String ad = CommonFunction.getDateTime64(new Date());
+//
+//        byte[] arr = new byte[20];
+//        StringBuilder debug1 = new StringBuilder();
+//        for (byte item : arr) {
+//            item = 0x00;
+//            debug1.append(item).append(" ");
+//        }
+//        Log.d(TAG, "onCreate: begin:  " + debug1.toString());
+//        this.changeByteArray(arr);
+//
+//        StringBuilder debug2 = new StringBuilder();
+//        for (byte item : arr) {
+//            debug2.append(item).append(" ");
+//        }
+//        Log.d(TAG, "onCreate: change:  " + debug2.toString());
 
-        byte[] arr = new byte[20];
-        StringBuilder debug1 = new StringBuilder();
-        for (byte item : arr) {
-            item = 0x00;
-            debug1.append(item).append(" ");
-        }
-        Log.d(TAG, "onCreate: begin:  " + debug1.toString());
-        this.changeByteArray(arr);
-
-        StringBuilder debug2 = new StringBuilder();
-        for (byte item : arr) {
-            debug2.append(item).append(" ");
-        }
-        Log.d(TAG, "onCreate: change:  " + debug2.toString());
+        NativeCamera.setDriverInfo("BS: ", "LX: N/a");
     }
+
+    CameraThread cameraThread;
+    CameraThread.ICameraThreadCallback cameraThreadCallback = new CameraThread.ICameraThreadCallback() {
+        @Override
+        public void onCameraConnect(int camId) {
+
+        }
+
+        @Override
+        public void onCameraDisconnect(int camId) {
+
+        }
+
+        @Override
+        public void onStreamSuccess(int camId, String url) {
+
+        }
+
+        @Override
+        public void onStreamOff(int camId) {
+
+        }
+
+        @Override
+        public void onLogCameraThread(String log) {
+
+        }
+    };
+
+    private final Thread threadTest = new Thread(new Runnable() {
+        @Override
+        public void run() {
+            if (cameraThread == null) {
+                cameraThread = new CameraThread(getApplicationContext(), 999959999);
+                cameraThread.setCameraThreadCallback(cameraThreadCallback);
+                cameraThread.start();
+            }
+//            checkLogicalMultiCamera();
+//            cameraEncode = new CameraEncode(getApplicationContext(), cameraId,
+//                    Environment.getExternalStorageDirectory().getPath());
+//
+//            cameraEncode.configure();
+//
+//            new Timer().schedule(new TimerTask() {
+//                @Override
+//                public void run() {
+//
+//                    cameraEncode.closeFileMP4();;
+//                    cameraEncode.saveFileMP4();
+//                }
+//            },  10000, 30000);
+        }
+    });
+
 
     private Timer timeWebSocket;
 
@@ -236,16 +292,18 @@ public class MainActivity extends AppCompatActivity {
 
     @Override
     protected void onStop() {
+
         super.onStop();
-        Log.d(TAG, "system is on Stop");
-        encoderH264.stop();
-        cameraObj.closeCamera();
     }
 
     @Override
     protected void onPause() {
         super.onPause();
         Log.d(TAG, "application is onPause");
+        if (cameraThread != null) {
+            cameraThread.stop();
+            cameraThread = null;
+        }
     }
 
     @Override
@@ -271,6 +329,13 @@ public class MainActivity extends AppCompatActivity {
 
     private void checkLogicalMultiCamera() {
         CameraManager cameraManager = (CameraManager) this.getSystemService(Context.CAMERA_SERVICE);
+        try {
+            int numCam = cameraManager.getCameraIdList().length;
+            Log.d(TAG, "checkLogicalMultiCamera: " + numCam);
+        }
+        catch (CameraAccessException e) {
+            e.printStackTrace();
+        }
         try {
             for (String id : cameraManager.getCameraIdList()) {
                 CameraCharacteristics cameraCharacteristics = cameraManager.getCameraCharacteristics(id);
@@ -330,4 +395,6 @@ public class MainActivity extends AppCompatActivity {
     public static native void setSurfaceFormat(Surface surface);
 
     private native void changeByteArray(byte[] array);
+
+    private native void nCheckCamera();
 }

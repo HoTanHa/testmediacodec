@@ -4,7 +4,6 @@ import android.graphics.Bitmap;
 import android.graphics.ImageFormat;
 import android.graphics.Rect;
 import android.graphics.YuvImage;
-import android.media.ImageReader;
 import android.util.Log;
 
 
@@ -17,12 +16,14 @@ import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStreamReader;
+import java.lang.reflect.Array;
 import java.net.HttpURLConnection;
 import java.net.InetSocketAddress;
 import java.net.Proxy;
 import java.net.URL;
 import java.nio.ByteBuffer;
 import java.nio.IntBuffer;
+import java.util.Arrays;
 import java.util.Date;
 
 public class ImageHttp {
@@ -33,16 +34,17 @@ public class ImageHttp {
     private static final String URL_ROUTER_2 = "http://route2.adsun.pro.vn/DeviceHttp/Camera?Serial=";
     private static final String URL_ROUTER_3 = "http://route3.adsun.net.vn/DeviceHttp/Camera?Serial=";
 
+    private static final boolean DEV_TEST = true;
     private static final String URL_DOMAIN_1 = "http://camera1.adsun.vn/DeviceHttp/Camera?Serial=";
     private static final String URL_DOMAIN_2 = "http://camera2.adsun.net.vn/DeviceHttp/Camera?Serial=";
     private static final String URL_DOMAIN_3 = "http://camera3.adsun.pro.vn/DeviceHttp/Camera?Serial=";
     private static final String HOST_PROXY = "livedev.adsun.vn";
     private static final int PORT_PROXY = 8090;
-//    private static final String URL_DOMAIN_1 = "http://namaroute.adsun.vn/DeviceHttp/Camera?Serial=";
-//    private static final String URL_DOMAIN_2 = "http://namaroute.adsun.vn/DeviceHttp/Camera?Serial=";
-//    private static final String URL_DOMAIN_3 = "http://namaroute.adsun.vn/DeviceHttp/Camera?Serial=";
-//    private static final String HOST_PROXY = "livedev.adsun.vn";
-//    private static final int PORT_PROXY = 8091;
+    private static final String URL_DOMAIN_1_DEV = "http://namaroute.adsun.vn/DeviceHttp/Camera?Serial=";
+    private static final String URL_DOMAIN_2_DEV = "http://namaroute.adsun.vn/DeviceHttp/Camera?Serial=";
+    private static final String URL_DOMAIN_3_DEV = "http://namaroute.adsun.vn/DeviceHttp/Camera?Serial=";
+    private static final String HOST_PROXY_DEV = "livedev.adsun.vn";
+    private static final int PORT_PROXY_DEV = 8091;
 
     private static final int RES_CODE = 200;
     private static final String RES_BODY = "OK!";
@@ -50,11 +52,11 @@ public class ImageHttp {
     private ImageSendCallBack imageSendCallBack;
     private static int countFail = 0;
 
-    private static final int QUALITY_JPEG  = 70;
+    private static final int QUALITY_JPEG = 70;
 
 
     public ImageHttp(int serialNumber, String path) {
-        this.serialNumber = serialNumber;
+        ImageHttp.serialNumber = serialNumber;
         this.pathStorage = path;
     }
 
@@ -77,12 +79,12 @@ public class ImageHttp {
 
     private String getUrlDomainToSend() {
         if (countFail < 10) {
-            return USE_ROUTER ? URL_ROUTER_1 : URL_DOMAIN_1;
+            return USE_ROUTER ? URL_ROUTER_1 : (DEV_TEST ? URL_DOMAIN_1_DEV : URL_DOMAIN_1);
         }
         if (countFail < 20) {
-            return USE_ROUTER ? URL_ROUTER_2 : URL_DOMAIN_2;
+            return USE_ROUTER ? URL_ROUTER_2 : (DEV_TEST ? URL_DOMAIN_2_DEV : URL_DOMAIN_2);
         }
-        return USE_ROUTER ? URL_ROUTER_3 : URL_DOMAIN_3;
+        return USE_ROUTER ? URL_ROUTER_3 : (DEV_TEST ? URL_DOMAIN_3_DEV : URL_DOMAIN_3);
 
     }
 
@@ -109,7 +111,7 @@ public class ImageHttp {
         new Thread(new Runnable() {
             @Override
             public void run() {
-                final ByteBuffer readOnlyCopy = frame.duplicate();
+                final ByteBuffer readOnlyCopy = frame.asReadOnlyBuffer();
                 int camIdReal = camId + 1;
                 ByteArrayOutputStream imageOS = null;
                 if (pixelFormat == ImageFormat.YUV_422_888) {
@@ -153,6 +155,53 @@ public class ImageHttp {
                 }
             }
         }).start();
+    }
+
+    public void send(byte [] rawImageNV21, int camId, Date date, boolean send) {
+        byte [] rawImage = Arrays.copyOf(rawImageNV21, rawImageNV21.length);
+
+        new Thread(new Runnable() {
+            @Override
+            public void run() {
+                byte[] finalRawImage = ImageUtil.YUV420SPtoNV21(rawImageNV21, rawImage, 1280,720);
+                int camIdReal = camId + 1;
+                ByteArrayOutputStream imageOS = NV21toJPEG(finalRawImage,1280,720,70);
+
+                if ((imageOS == null)) {// || (imageOS.size() > (150 * 1024))) {
+                    Log.d(TAG, "run: Create Image Fail..!!!!.." + camId);
+                    imageSendCallBack.onImageCreateFail(camId);
+                    return;
+                }
+                boolean result = false;
+                if (send) {
+                    try {
+                        result = http_post_image(imageOS, camIdReal, date);
+                    }
+                    catch (IOException e) {
+//                        e.printStackTrace();
+                    }
+                    finally {
+                        setCountFail(result);
+                        if (result) {
+                            imageSendCallBack.onImageSendSuccess(camIdReal, date);
+                        }
+                        else {
+                            saveImage(imageOS, camIdReal, date);
+                        }
+                    }
+                }
+                else {
+                    saveImage(imageOS, camIdReal, date);
+                }
+            }
+        }).start();
+    }
+
+    public static ByteArrayOutputStream NV21toJPEG(byte[] nv21, int width, int height, int quality) {
+        ByteArrayOutputStream out = new ByteArrayOutputStream();
+        YuvImage yuv = new YuvImage(nv21, ImageFormat.NV21, width, height, null);
+        yuv.compressToJpeg(new Rect(0, 0, width, height), quality, out);
+        return out;
     }
 
     private ByteArrayOutputStream rgb565ToJpeg(ByteBuffer frame, int mWidth, int mHeight, int quality) {
@@ -328,7 +377,7 @@ public class ImageHttp {
     private boolean http_post_image(String path) throws IOException {
         File file = new File(path);
         int file_size = (int) file.length();
-        String serial64 = ham_10to64(serialNumber);
+        String serial64 = ham_10to64(ImageHttp.serialNumber);
         int indexName = path.lastIndexOf("img_");
         String imageName = path.substring(indexName);
         String sTime = imageName.substring(imageName.lastIndexOf('_') + 1, imageName.lastIndexOf('.'));
@@ -360,7 +409,8 @@ public class ImageHttp {
         }
         else {
             /*****************************************************/
-            Proxy proxy = new Proxy(Proxy.Type.HTTP, new InetSocketAddress(HOST_PROXY, PORT_PROXY));
+            int portProxy = DEV_TEST ? PORT_PROXY_DEV : PORT_PROXY;
+            Proxy proxy = new Proxy(Proxy.Type.HTTP, new InetSocketAddress(HOST_PROXY, portProxy));
             connection = (HttpURLConnection) new URL(urlServer).openConnection(proxy);
         }
         /******************************************************/
@@ -428,7 +478,8 @@ public class ImageHttp {
         }
         else {
             /*****************************************************/
-            Proxy proxy = new Proxy(Proxy.Type.HTTP, new InetSocketAddress(HOST_PROXY, PORT_PROXY));
+            int portProxy = DEV_TEST ? PORT_PROXY_DEV : PORT_PROXY;
+            Proxy proxy = new Proxy(Proxy.Type.HTTP, new InetSocketAddress(HOST_PROXY, portProxy));
             connection = (HttpURLConnection) new URL(urlServer).openConnection(proxy);
         }
         /******************************************************/

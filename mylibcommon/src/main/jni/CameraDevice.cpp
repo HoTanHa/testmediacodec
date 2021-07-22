@@ -10,43 +10,46 @@
 #include <unistd.h>
 #include <chrono>
 #include <thread>
+#include <media/NdkImage.h>
+#include <media/NdkImageReader.h>
+#include <search.h>
+#include "myJniDefine.h"
 
 CameraDevice::CameraDevice()
 	: camId(1),
-	  latitude(0.0f),
-	  longitude(0.0f),
-	  speed(0.0f),
 	  isInfoChange(false),
-	  isRunning(false),
+	  isRunning(true),
 	  isStreaming(false),
 	  mMainWindow(nullptr),
 	  mStreamWindow(nullptr) {
 
 	strInfo = (char *) malloc(120);
-	bsXe = (char *) malloc(20);
-	driveInfo = (char *) malloc(40);
-	bufferInfoY = (uint8_t *) malloc(BUFFER_INFO_SIZE);
-	bufferMain = (uint8_t *) malloc(SIZE_BUFFER_MAIN);
-	bufferStream = (uint8_t *) malloc(SIZE_BUFFER_STREAM);
+	memset(strInfo, 0, 120);
 
-	pthread_mutex_init(&info_mutex, NULL);
-	pthread_mutex_init(&draw_mutex, NULL);
+//	bufferInfoY = (uint8_t *) malloc(BUFFER_INFO_SIZE);
+//	bufferMain = (uint8_t *) malloc(SIZE_BUFFER_MAIN);
+//	bufferStream = (uint8_t *) malloc(SIZE_BUFFER_STREAM);
+	bufferInfoY = new uint8_t[BUFFER_INFO_SIZE];
+	bufferMain = new uint8_t[SIZE_BUFFER_MAIN];
+	bufferStream = new uint8_t[SIZE_BUFFER_STREAM];
+	CameraDevice::numCam++;
 }
 
 CameraDevice::~CameraDevice() {
 	stopStreamWindow();
+	this->isRunning = false;
+	info_thread.join();
 
 	free(strInfo);
-	free(bsXe);
-	free(driveInfo);
-	free(bufferInfoY);
-	free(bufferMain);
-	free(bufferStream);
-	pthread_mutex_destroy(&info_mutex);
-	pthread_mutex_destroy(&draw_mutex);
+//	free(bufferInfoY);
+//	free(bufferMain);
+//	free(bufferStream);
+	delete[] bufferInfoY;
+	delete[] bufferMain;
+	delete[] bufferStream;
 }
 
-void *CameraDevice::create_info_in_image(void *vptr_args) {
+void CameraDevice::create_info_in_image(void *vptr_args) {
 	auto *mCamera = reinterpret_cast<CameraDevice *>(vptr_args);
 	time_t time_unix = 0;
 	time_t time_compare = 0;
@@ -55,46 +58,52 @@ void *CameraDevice::create_info_in_image(void *vptr_args) {
 	int ii, jj, c_idx;
 	int idx_arr = 0;
 	int length = 0;
+	int count = 0;
 
+	pthread_setname_np(pthread_self(), "setInfoThread");
 	while (mCamera->isRunning) {
+		usleep(50000);
+		count++;
 		time_unix = time(NULL);
-		if (time_compare == time_unix && mCamera->isInfoChange) {
-			usleep(100000);
-			continue;
-		}
+		// TODO: set lai CameraDevice::sIsInfoChange
+		if ((time_compare != time_unix) || (mCamera->isInfoChange) || (count == 10)) {
+			time_compare = time_unix;
+			count = 0;
+			mCamera->isInfoChange = false;
+			localtime_r(&time_unix, &tm);
+			CameraDevice::sInfo_mutex.lock();
+			memset(mCamera->strInfo, 0, 110);
+			snprintf(mCamera->strInfo, 100,
+					 "Cam%d %04d/%02d/%02d %02d:%02d:%02d %s %9.6lf %10.6lf %5.1lfKm/h %s",
+					 mCamera->camId, tm.tm_year + 1900, tm.tm_mon + 1, tm.tm_mday, tm.tm_hour,
+					 tm.tm_min, tm.tm_sec, CameraDevice::sBsXe, CameraDevice::sLatitude,
+					 CameraDevice::sLongitude, CameraDevice::sSpeeds, CameraDevice::sDriverInfo);
+			length = strlen(mCamera->strInfo);
+			CameraDevice::sInfo_mutex.unlock();
 
-		time_compare = time_unix;
-		mCamera->isInfoChange = false;
-		localtime_r(&time_unix, &tm);
-
-		memset(mCamera->strInfo, 0, 110);
-		snprintf(mCamera->strInfo, 100,
-				 "Cam%d %04d/%02d/%02d %02d:%02d:%02d %9.6lf %10.6lf %5.1lfKm/h %s",
-				 mCamera->camId, tm.tm_year + 1900, tm.tm_mon + 1, tm.tm_mday, tm.tm_hour,
-				 tm.tm_min, tm.tm_sec, mCamera->latitude, mCamera->longitude, mCamera->speed,
-				 mCamera->driveInfo);
-		length = strlen(mCamera->strInfo);
-		memset(mCamera->bufferInfoY, 128, BUFFER_INFO_SIZE);
-		int pixCrCb_tmp = 0;
-		int pixCrCb_tmp11 = 0;
-		for (ii = 0; ii < 24; ii++) {
-			for (c_idx = 0; c_idx < length; c_idx++) {
-				idx_arr = mCamera->strInfo[c_idx] * 24 * 2 + 2 * ii;
-				pixCrCb_tmp11 = pixCrCb_tmp + c_idx * 12;
-				value = (console_font_12x24[idx_arr]) * 0x100 + console_font_12x24[idx_arr + 1];
-				for (jj = 0; jj < 12; jj++) {
-					if (value & (0x8000 >> jj)) {
-						mCamera->bufferInfoY[pixCrCb_tmp11 + jj] = 0xff;
+			mCamera->info_mutex.lock();
+			memset(mCamera->bufferInfoY, 128, BUFFER_INFO_SIZE);
+			int pixCrCb_tmp = 0;
+			int pixCrCb_tmp11;
+			for (ii = 0; ii < 24; ii++) {
+				for (c_idx = 0; c_idx < length; c_idx++) {
+					idx_arr = mCamera->strInfo[c_idx] * 24 * 2 + 2 * ii;
+					pixCrCb_tmp11 = pixCrCb_tmp + c_idx * 12;
+					value = (console_font_12x24[idx_arr]) * 0x100 + console_font_12x24[idx_arr + 1];
+					for (jj = 0; jj < 12; jj++) {
+						if (value & (0x8000 >> jj)) {
+							mCamera->bufferInfoY[pixCrCb_tmp11 + jj] = 0xff;
+						}
 					}
 				}
+				pixCrCb_tmp += WIDTH_IMG;
 			}
-			pixCrCb_tmp += 1280;
+			mCamera->info_mutex.unlock();
 		}
 	}
-	return nullptr;
 }
 
-void *CameraDevice::drawFrameToSurfaceStream(void *vptr_args) {
+void CameraDevice::drawFrameToSurfaceStream(void *vptr_args) {
 	auto *mCamera = reinterpret_cast<CameraDevice *>(vptr_args);
 
 	ANativeWindow_Buffer buffer;
@@ -109,12 +118,12 @@ void *CameraDevice::drawFrameToSurfaceStream(void *vptr_args) {
 			count = 0;
 		}
 
-		pthread_mutex_lock(&(mCamera->draw_mutex));
-		auto *src = (uint8_t *) mCamera->bufferMain;
+		mCamera->draw_mutex.lock();
+//		auto *src = (uint8_t *) mCamera->bufferMain;
 		auto *sY0 = (uint8_t *) mCamera->bufferMain;
 		auto *sY1 = (uint8_t *) (mCamera->bufferMain + WIDTH_IMG);
 		auto *sUV0 = (uint8_t *) (mCamera->bufferMain + SIZE_MAIN_IMAGE);
-		auto *sUV1 = (uint8_t *) (mCamera->bufferMain + SIZE_MAIN_IMAGE + WIDTH_IMG);;
+		auto *sUV1 = (uint8_t *) (mCamera->bufferMain + SIZE_MAIN_IMAGE + WIDTH_IMG);
 		auto *d360 = (uint8_t *) mCamera->bufferStream;
 		auto *dUV = (uint8_t *) (mCamera->bufferStream + SIZE_STREAM_IMAGE);
 
@@ -153,35 +162,40 @@ void *CameraDevice::drawFrameToSurfaceStream(void *vptr_args) {
 			sUV0 += WIDTH_IMG;
 			sUV1 += WIDTH_IMG;
 		}
-		pthread_mutex_unlock(&(mCamera->draw_mutex));
+		mCamera->draw_mutex.unlock();
 
 		if (ANativeWindow_lock(mCamera->mStreamWindow, &buffer, NULL) == 0) {
 			auto *dest = (uint8_t *) buffer.bits;
 			memcpy(dest, mCamera->bufferStream, SIZE_Y_STREAM);
 			auto *sUV360 = mCamera->bufferStream + SIZE_Y_STREAM;
-			auto *destCrCb = dest + (HEIGHT_STREAM * (WIDTH_STREAM + 24));
+			auto *destCrCb = dest + (WIDTH_STREAM * (HEIGHT_STREAM + 24));
 			memcpy(destCrCb, sUV360, SIZE_UV_STREAM * 2);
 			ANativeWindow_unlockAndPost(mCamera->mStreamWindow);
 		}
 	}
+}
 
-	return nullptr;
+void CameraDevice::setCamId(int camIdSet) {
+	this->camId = camIdSet;
 }
 
 void CameraDevice::setMainWindow(ANativeWindow *mainWindow) {
 	this->mMainWindow = mainWindow;
 	ANativeWindow_setBuffersGeometry(mMainWindow, WIDTH_IMG, HEIGHT_IMG, FORMAT_SURFACE);
+	info_thread = std::thread(create_info_in_image, (void *) this);
 }
 
 void CameraDevice::setStreamWindow(ANativeWindow *streamWindow) {
 	this->mStreamWindow = streamWindow;
 	ANativeWindow_setBuffersGeometry(mStreamWindow, WIDTH_STREAM, HEIGHT_STREAM, FORMAT_SURFACE);
-	pthread_create(&(drawStream_thread), NULL, drawFrameToSurfaceStream, (void *) this);
+	drawStream_thread = std::thread(drawFrameToSurfaceStream, (void *) this);
 }
 
 void CameraDevice::stopStreamWindow() {
-	isStreaming = false;
-	pthread_join(drawStream_thread, NULL);
+	if (isStreaming) {
+		isStreaming = false;
+		drawStream_thread.join();
+	}
 	if (mStreamWindow) {
 		ANativeWindow_release(mStreamWindow);
 		mStreamWindow = NULL;
@@ -189,47 +203,47 @@ void CameraDevice::stopStreamWindow() {
 }
 
 void CameraDevice::drawBufferToMainWindow(uint8_t *rawImage) {
-	pthread_mutex_lock(&info_mutex);
+	info_mutex.lock();
 	memcpy(rawImage, bufferInfoY, WIDTH_IMG * 24);
-	pthread_mutex_unlock(&info_mutex);
+	info_mutex.unlock();
 
-	pthread_mutex_lock(&draw_mutex);
+	draw_mutex.lock();
 	memcpy(bufferMain, rawImage, SIZE_BUFFER_MAIN);
-
+	draw_mutex.unlock();
 	ANativeWindow_Buffer buffer;
 	if (ANativeWindow_lock(mMainWindow, &buffer, NULL) == 0) {
-
-		uint8_t *src = (uint8_t *) bufferMain;
+		auto *src = (uint8_t *) rawImage;
 		auto *dest = (uint8_t *) buffer.bits;
 		memcpy(dest, src, SIZE_Y_MAIN);
 		auto *sUV = src + SIZE_Y_MAIN;
-		auto *dCrCb = dest + (SIZE_Y_MAIN + 1280 * 16);
+		auto *dCrCb = dest + (SIZE_Y_MAIN + WIDTH_IMG * 16);
 		memcpy(dCrCb, sUV, SIZE_UV_MAIN * 2);
 		ANativeWindow_unlockAndPost(mMainWindow);
 	}
-	pthread_mutex_unlock(&draw_mutex);
 }
 
 void CameraDevice::setInfoLocation(double sLat, double sLon, double sSpeed) {
-	pthread_mutex_lock(&info_mutex);
-	this->latitude = sLat;
-	this->longitude = sLon;
-	this->speed = sSpeed;
-	this->isInfoChange = true;
-	pthread_mutex_unlock(&info_mutex);
-
+	CameraDevice::sInfo_mutex.lock();
+	CameraDevice::sLatitude = sLat;
+	CameraDevice::sLongitude = sLon;
+	CameraDevice::sSpeeds = sSpeed;
+	CameraDevice::sInfo_mutex.lock();
 }
 
-void CameraDevice::setDriverInfo(char *sBsXe, char *sGPLX) {
-	pthread_mutex_lock(&info_mutex);
-	memset(bsXe, 0, 20);
-	snprintf(bsXe, 15, "%s", sBsXe);
-
-	memset(driveInfo, 0, 40);
-	snprintf(driveInfo, 30, "%s", sGPLX);
-
-	pthread_mutex_unlock(&info_mutex);
+void CameraDevice::setDriverInfo(char *ssBsXe, char *sGPLX) {
+	CameraDevice::sInfo_mutex.lock();
+	memset(CameraDevice::sBsXe, 0, 20);
+	snprintf(CameraDevice::sBsXe, 15, "%s", ssBsXe);
+	memset(CameraDevice::sDriverInfo, 0, 40);
+	snprintf(CameraDevice::sDriverInfo, 30, "%s", sGPLX);
+	CameraDevice::sInfo_mutex.unlock();
 }
 
-
+double CameraDevice::sLatitude = 0.0f;
+double CameraDevice::sLongitude = 0.0f;
+double CameraDevice::sSpeeds = 0.0f;
+char CameraDevice::sBsXe[20] = {0};
+char CameraDevice::sDriverInfo[40] = {0};
+std::mutex CameraDevice::sInfo_mutex;
+int CameraDevice::numCam = 0;
 

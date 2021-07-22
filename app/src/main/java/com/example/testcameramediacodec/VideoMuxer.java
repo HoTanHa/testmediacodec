@@ -334,7 +334,7 @@ public class VideoMuxer {
     }
 
     public int close() {
-        stopRtmpStream();
+        stopStreamRtp();
         stopSaveMp4();
         stopRtmpStream();
         return 0;

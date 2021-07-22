@@ -47,6 +47,7 @@ target_link_libraries( # Specifies the target library.
         native-lib
 
         android
+        camera2ndk
         # Links the target library to the log library
         # included in the NDK.
         ${log-lib})

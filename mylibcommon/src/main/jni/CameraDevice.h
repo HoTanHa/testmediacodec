@@ -8,7 +8,11 @@
 #include <android/native_window.h>
 #include <android/native_activity.h>
 #include <android/native_window_jni.h>
-#include <pthread.h>
+#include <media/NdkImage.h>
+#include <media/NdkImageReader.h>
+#include <mutex>
+#include <thread>
+#include <list>
 
 const int32_t BUFFER_INFO_SIZE = 1280 * 24;
 const int32_t WIDTH_IMG = 1280;
@@ -28,21 +32,23 @@ const int32_t FORMAT_SURFACE = AHARDWAREBUFFER_FORMAT_Y8Cb8Cr8_420;
 
 class CameraDevice {
 private:
+	static double sLatitude;
+	static double sLongitude;
+	static double sSpeeds;
+	static char sBsXe[20];
+	static char sDriverInfo[40];
+	static std::mutex sInfo_mutex;
+	static int numCam;
 	int camId;
-	double latitude;
-	double longitude;
-	double speed;
 	bool isInfoChange;
 	char *strInfo;
-	char *bsXe;
-	char *driveInfo;
 	uint8_t *bufferInfoY;
 	uint8_t *bufferMain;
 	uint8_t *bufferStream;
-	pthread_t drawStream_thread;
-	pthread_mutex_t draw_mutex;
-	pthread_t info_thread;
-	pthread_mutex_t info_mutex;
+	std::thread drawStream_thread;
+	std::mutex draw_mutex;
+	std::thread info_thread;
+	std::mutex info_mutex;
 
 	volatile bool isRunning;
 	volatile bool isStreaming;
@@ -51,14 +57,16 @@ private:
 	ANativeWindow *mStreamWindow;
 
 
-	static void *create_info_in_image(void *vptr_args);
+	static void create_info_in_image(void *vptr_args);
 
-	static void *drawFrameToSurfaceStream(void *vptr_args);
+	static void drawFrameToSurfaceStream(void *vptr_args);
 
 public:
 	CameraDevice();
 
 	~CameraDevice();
+
+	void setCamId(int camId);
 
 	void setMainWindow(ANativeWindow *mainWindow);
 
@@ -68,9 +76,9 @@ public:
 
 	void drawBufferToMainWindow(uint8_t *rawImage);
 
-	void setInfoLocation(double sLat, double sLon, double sSpeed);
+	static void setInfoLocation(double sLat, double sLon, double sSpeed);
 
-	void setDriverInfo(char *sBsXe, char *sGPLX);
+	static void setDriverInfo(char *sBsXe, char *sGPLX);
 
 };
 

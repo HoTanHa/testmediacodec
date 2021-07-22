@@ -10,6 +10,8 @@ cmake_minimum_required(VERSION 3.4.1)
 # You can define multiple libraries, and CMake builds them for you.
 # Gradle automatically packages shared libraries with your APK.
 
+set(CMAKE_VERBOSE_MAKEFILE on)
+
 
 add_library( # Sets the name of the library.
         myNative-jni
@@ -38,6 +40,8 @@ add_library( # Sets the name of the library.
 
 add_definitions(-DNO_CRYPTO)
 
+#set(ANDROID_NATIVE_API_LEVEL    25)
+#set(LOCAL_LDLIBS += -L /home/hotanha/Android/Sdk/ndk/23.0.7530507/toolchains/llvm/prebuilt/linux-x86_64/sysroot/usr/lib/arm-linux-androideabi/29/)
 
 # Searches for a specified prebuilt library and stores the path as a
 # variable. Because CMake includes system libraries in the search path by
@@ -60,6 +64,13 @@ target_link_libraries( # Specifies the target library.
         nativeCamera-jni
         myNative-jni
         android
+        camera2ndk
+        mediandk
         # Links the target library to the log library
         # included in the NDK.
         ${log-lib} )
+        
+#add_definitions(-g -DANDROID -Wno-write-strings -fsigned-char -Wno-conversion-null -lmedia)
+
+#target_compile_options(nativeCamera-jni
+#        PRIVATE -Wall  "$<$<CONFIG:RELEASE>:-Ofast>")

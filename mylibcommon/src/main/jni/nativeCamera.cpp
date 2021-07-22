@@ -4,6 +4,31 @@
 #include <jni.h>
 #include <string>
 #include "CameraDevice.h"
+#include <camera/NdkCameraManager.h>
+#include "myJniDefine.h"
+
+extern "C"
+JNIEXPORT void JNICALL
+Java_com_example_mylibcommon_NativeCamera_nCheckCameraList(JNIEnv *env, jclass clazz) {
+	// TODO: implement nCheckCameraList()
+	ACameraManager *camManager = ACameraManager_create();
+	ACameraIdList *cameraIds = nullptr;
+	ACameraManager_getCameraIdList(camManager, &cameraIds);
+
+	logi("Num of camera get by nkd: %d", cameraIds->numCameras);
+//	for (int i = 0; i < cameraIds->numCameras; ++i)
+//	{
+//		const char* id = cameraIds->cameraIds[i];
+//		ACameraMetadata* metadataObj;
+//		ACameraManager_getCameraCharacteristics(camManager, id, &metadataObj);
+//
+//		ACameraMetadata_free(metadataObj);
+//
+//	}
+	ACameraManager_deleteCameraIdList(cameraIds);
+
+	ACameraManager_delete(camManager);
+}
 
 extern "C"
 JNIEXPORT jlong JNICALL
@@ -23,15 +48,24 @@ Java_com_example_mylibcommon_NativeCamera_nClose(JNIEnv *env, jobject thiz, jlon
 
 extern "C"
 JNIEXPORT void JNICALL
-Java_com_example_mylibcommon_NativeCamera_nSetInfoLocation(JNIEnv *env, jobject thiz, jlong pointer,
-														   jdouble lat, jdouble lon, jdouble speed
-) {
-	// TODO: implement nSetInfoLocation()
+Java_com_example_mylibcommon_NativeCamera_nSetCamId(JNIEnv *env, jobject thiz, jlong pointer,
+													jint cam_id) {
+	// TODO: implement nSetCamId()
 	auto *nCamera = reinterpret_cast<CameraDevice *>(pointer);
-	nCamera->setInfoLocation(lat, lon, speed);
+	nCamera->setCamId(cam_id);
 }
 
 extern "C"
+JNIEXPORT void JNICALL
+Java_com_example_mylibcommon_NativeCamera_nSetInfoLocation(JNIEnv *env, jclass clazz,
+														   jdouble lat, jdouble lon, jdouble speed
+) {
+	// TODO: implement nSetInfoLocation()
+	CameraDevice::setInfoLocation(lat, lon, speed);
+}
+
+extern "C"
+
 JNIEXPORT void JNICALL
 Java_com_example_mylibcommon_NativeCamera_nDrawBufferInfoToImage(JNIEnv *env, jobject thiz,
 																 jlong pointer,
@@ -47,16 +81,14 @@ Java_com_example_mylibcommon_NativeCamera_nDrawBufferInfoToImage(JNIEnv *env, jo
 
 extern "C"
 JNIEXPORT void JNICALL
-Java_com_example_mylibcommon_NativeCamera_nSetDriverInfo(JNIEnv *env, jobject thiz,
-														 jlong pointer,
+Java_com_example_mylibcommon_NativeCamera_nSetDriverInfo(JNIEnv *env, jclass clazz,
 														 jstring bs,
 														 jstring gplx) {
 	// TODO: implement nSetDriverInfo()
-	auto *nCamera = reinterpret_cast<CameraDevice *>(pointer);
 	const char *sBienSo = env->GetStringUTFChars(bs, 0);
 	const char *sGPLX = env->GetStringUTFChars(gplx, 0);
 
-	nCamera->setDriverInfo((char *) sBienSo, (char *) sGPLX);
+	CameraDevice::setDriverInfo((char *) sBienSo, (char *) sGPLX);
 
 	env->ReleaseStringUTFChars(bs, sBienSo);
 	env->ReleaseStringUTFChars(gplx, sGPLX);

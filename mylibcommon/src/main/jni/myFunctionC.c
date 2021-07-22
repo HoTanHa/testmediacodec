@@ -22,15 +22,15 @@ void testFunction1() {
 void create_info_in_image(char* buffer_info, int camId_i, double latitude_i, double longitude_i,
 						  double speed_i, char *xeInfo) {
 	time_t time_unix = 0;
-	time_t time_compare = 0;
+//	time_t time_compare = 0;
 	char strInfo[110];
 	struct tm tm;
 	uint16_t value;
 	int ii, jj, c_idx;
-	int idx = 0;
+//	int idx = 0;
 	int idx_arr = 0;
 	int length = 0;
-	int step_row = 1280 * 2;
+//	int step_row = 1280 * 2;
 
 	time_unix = time(NULL);
 	localtime_r(&time_unix, &tm);
@@ -43,7 +43,7 @@ void create_info_in_image(char* buffer_info, int camId_i, double latitude_i, dou
 	memset(buffer_info, 128, BUFFER_INFO_SIZE);
 	int pixCrCb_tmp = 0;
 	int pixCrCb_tmp11 = 0;
-	int pixel_black = 0;
+//	int pixel_black = 0;
 	for (ii = 0; ii < 24; ii++) {
 		for (c_idx = 0; c_idx < length; c_idx++) {
 			idx_arr = (char) strInfo[c_idx] * 24 * 2 + 2 * ii;
