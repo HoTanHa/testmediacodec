@@ -89,14 +89,14 @@ public class RTMPMuxer {
      */
     private native int nClose(long rtmpPointer);
 
-    private void syncClose() {
+    private synchronized void syncClose() {
         isSetupOk = false;
         nClose(rtmpPointer);
         rtmpMuxerCallback.onStopStream();
         rtmpPointer = 0;
     }
 
-    public int close() {
+    public synchronized int close() {
         if ((rtmpPointer == 0)|| (!isSetupOk)){
             return 0;
         }

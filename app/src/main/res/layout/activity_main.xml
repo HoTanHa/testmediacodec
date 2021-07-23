@@ -15,59 +15,105 @@
         app:layout_constraintLeft_toLeftOf="parent"
         app:layout_constraintRight_toRightOf="parent"
         app:layout_constraintTop_toTopOf="parent" />
-
     <LinearLayout
-        android:id="@+id/linearLayout"
-        android:layout_width="392dp"
-        android:layout_height="295dp"
-        android:orientation="vertical"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toTopOf="parent">
-
-        <Button
-            android:id="@+id/buttonStreamOn"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:text="STREAM ON" />
-
-        <Button
-            android:id="@+id/buttonStreamOff"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:text="STREAM OFF" />
-
-        <Button
-            android:id="@+id/btnConnectWebsk"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:text="Connect websocket" />
-
-        <Button
-            android:id="@+id/btnCloseWebsk"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:text="close Websockset" />
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:orientation="vertical">
 
         <LinearLayout
             android:layout_width="match_parent"
-            android:layout_height="match_parent"
+            android:layout_height="67dp"
             android:orientation="horizontal">
 
             <Button
-                android:id="@+id/buttonStream0n2"
-                android:layout_width="wrap_content"
+                android:id="@+id/button_on1"
+                android:layout_width="192dp"
                 android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:text="STREAM ON2" />
+                android:text="Button_on1" />
 
             <Button
-                android:id="@+id/buttonStreamOff2"
+                android:id="@+id/button_off1"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
-                android:text="STREAM OFF2" />
+                android:text="Button_off1" />
         </LinearLayout>
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="67dp"
+            android:orientation="horizontal">
+
+            <Button
+                android:id="@+id/button_on2"
+                android:layout_width="192dp"
+                android:layout_height="wrap_content"
+                android:text="Button_on2" />
+
+            <Button
+                android:id="@+id/button_off2"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="Button_off2" />
+        </LinearLayout>
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="67dp"
+            android:orientation="horizontal">
+
+            <Button
+                android:id="@+id/button_save"
+                android:layout_width="192dp"
+                android:layout_height="wrap_content"
+                android:text="Button_Save" />
+
+            <Button
+                android:id="@+id/button_nosd"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="Button_NoSD" />
+        </LinearLayout>
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="67dp"
+            android:orientation="horizontal">
+
+            <Button
+                android:id="@+id/button_OnPlb"
+                android:layout_width="192dp"
+                android:layout_height="wrap_content"
+                android:text="Btn_OnPlayback" />
+
+            <Button
+                android:id="@+id/button_StopPlb"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="Btn_StopPb" />
+        </LinearLayout>
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="67dp"
+            android:orientation="horizontal">
+
+            <Button
+                android:id="@+id/button_OnRTP"
+                android:layout_width="192dp"
+                android:layout_height="wrap_content"
+                android:text="Btn_OnRTP1" />
+
+            <Button
+                android:id="@+id/button_StopRTP"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="Btn_StopRTP1" />
+        </LinearLayout>
+
+
     </LinearLayout>
 
     <TextView

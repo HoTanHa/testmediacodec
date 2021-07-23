@@ -132,6 +132,7 @@ extern "C"
     RTMP_ERROR_GENERIC = -26,
     RTMP_ERROR_SANITY_FAIL = -27,
   } RTMPResult;
+  
 
   typedef struct RTMPChunk
   {

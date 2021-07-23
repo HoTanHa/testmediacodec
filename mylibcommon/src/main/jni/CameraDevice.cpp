@@ -108,15 +108,10 @@ void CameraDevice::drawFrameToSurfaceStream(void *vptr_args) {
 
 	ANativeWindow_Buffer buffer;
 	int count = 0;
+	mCamera->isStreaming = true;
 	while ((mCamera->isStreaming && mCamera->isRunning)) {
-		usleep(10000);
-		if (count < 10) {
-			count++;
-			continue;
-		}
-		else {
-			count = 0;
-		}
+		usleep(100000);
+
 
 		mCamera->draw_mutex.lock();
 //		auto *src = (uint8_t *) mCamera->bufferMain;

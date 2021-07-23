@@ -8,6 +8,8 @@ import android.os.Bundle;
 import android.util.Log;
 import android.view.Surface;
 
+import androidx.annotation.NonNull;
+
 import java.io.IOException;
 import java.nio.ByteBuffer;
 
@@ -64,8 +66,9 @@ public class EncoderMain {
     }
 
     public void start() {
-        encodeThread.setPriority(Thread.MAX_PRIORITY - 1);
-        encodeThread.start();
+        mediaCodec.start();
+//        encodeThread.setPriority(Thread.MAX_PRIORITY - 1);
+//        encodeThread.start();
     }
 
     private void configureMediaCodecEncoder() {
@@ -85,8 +88,37 @@ public class EncoderMain {
         mediaCodec.configure(format, null, null, MediaCodec.CONFIGURE_FLAG_ENCODE);
         // create Surface encode
         encodeSurface = mediaCodec.createInputSurface();
-        mediaCodec.start();
+        mediaCodec.setCallback(callback);
     }
+
+    private MediaCodec.Callback callback = new MediaCodec.Callback() {
+        @Override
+        public void onInputBufferAvailable(@NonNull MediaCodec codec, int index) {
+
+        }
+
+        @Override
+        public void onOutputBufferAvailable(@NonNull MediaCodec codec, int index, @NonNull MediaCodec.BufferInfo info) {
+                ByteBuffer outputBuffer = codec.getOutputBuffer(index);
+                encodeCallback.onDataVideoEncodeOutput(outputBuffer, info);
+                mediaCodec.releaseOutputBuffer(index, false);
+
+        }
+
+        @Override
+        public void onError(@NonNull MediaCodec codec, @NonNull MediaCodec.CodecException e) {
+
+        }
+
+        @Override
+        public void onOutputFormatChanged(@NonNull MediaCodec codec, @NonNull MediaFormat format) {
+            if (!isVideoFormatChange) {
+                mediaFormat = format;
+                isVideoFormatChange = true;
+                encodeCallback.onEncodeFormatChange(format);
+            }
+        }
+    };
 
     private final Thread encodeThread = new Thread(new Runnable() {
         @Override

@@ -73,9 +73,11 @@ public class CameraObj {
     private final ImageReader.OnImageAvailableListener mOnImageAvailableListener = new ImageReader.OnImageAvailableListener() {
         @Override
         public void onImageAvailable(ImageReader reader) {
-            Image image = reader.acquireNextImage();
-            callback.onRawImage(image);
-            image.close();
+            Image image = reader.acquireLatestImage();
+            if (image!=null) {
+                callback.onRawImage(image);
+                image.close();
+            }
         }
     };
 

@@ -24,8 +24,8 @@ public final class CameraThread {
     private long timeSetStorage = 0;
     private boolean printLog = true;
 
-    private ArrayList<String> camIdStr = new ArrayList<>();
-    private ArrayList<CameraEncode> cameraEncodes = new ArrayList<>();
+    private final ArrayList<String> camIdStr = new ArrayList<>();
+    private final ArrayList<CameraEncode> cameraEncodes = new ArrayList<>();
 
     private static ICameraThreadCallback cameraThreadCallback;
 
@@ -36,6 +36,7 @@ public final class CameraThread {
     public CameraThread(Context context, int sn) {
         this.mContext = context;
         CameraThread.serialNumber = sn;
+        CameraEncode.setSerialNumber(sn);
     }
 
     public void setCameraThreadCallback(ICameraThreadCallback callback) {
@@ -52,7 +53,7 @@ public final class CameraThread {
     }
 
     public void stop() {
-        for (CameraEncode cameraEncode:cameraEncodes             ) {
+        for (CameraEncode cameraEncode : cameraEncodes) {
             cameraEncode.close();
         }
 
@@ -61,7 +62,7 @@ public final class CameraThread {
             cameraThread.join();
         }
         catch (InterruptedException e) {
-            Log.e(TAG, "stop: " + e.getMessage() );
+            Log.e(TAG, "stop: " + e.getMessage());
         }
         cameraEncodes.clear();
         camIdStr.clear();
@@ -69,7 +70,6 @@ public final class CameraThread {
 
     public void setInfoLocation(double lat, double lon, double speed) {
         NativeCamera.setInfoLocation(lat, lon, speed);
-
     }
 
     public void setDriverInfo(String sBsXe, String sInfo) {
@@ -109,11 +109,30 @@ public final class CameraThread {
         isStorageStatusChange = true;
     }
 
+    public void startStreamRtmp(int camId, String url) {
+        if (camId >= cameraEncodes.size()) {
+            return;
+        }
+        if (cameraEncodes.get(camId).isCameraExist()) {
+            cameraEncodes.get(camId).startStreamRtmp(url);
+        }
+    }
+
+    public void stopStream(int camId) {
+        if (camId >= cameraEncodes.size()) {
+            return;
+        }
+        if (cameraEncodes.get(camId).isCameraExist()) {
+            cameraEncodes.get(camId).stopStreamRtmp();
+        }
+    }
+
+
     private final Thread cameraThread = new Thread(new Runnable() {
         @Override
         public void run() {
             getCameraIdList();
-            for (int i = 0; i < camIdStr.size(); i++) {
+            for (int i = 0; i <1;i++){// camIdStr.size(); i++) {
                 cameraEncodes.add(i, new CameraEncode(mContext, camIdStr.get(i), i));
             }
             long time = (System.currentTimeMillis()) / 1000;
@@ -121,8 +140,10 @@ public final class CameraThread {
             long timeCheckCamExist = 0;
 
             for (CameraEncode cameraEncode : cameraEncodes) {
+                cameraEncode.setCameraEncodeCallback(cameraEncodeCallback);
                 cameraEncode.setCameraExist(true);
             }
+//            CameraEncode.setPathStorage(true, Environment.getExternalStorageDirectory().getPath());
             while (isRunning) {
                 time = System.currentTimeMillis() / 1000;
 
@@ -137,12 +158,18 @@ public final class CameraThread {
                 if (isStorageStatusChange) {
                     if (storageStatus && (time > (timeSetStorage + 2))) {
                         isStorageStatusChange = false;
-                        CameraEncode.setPathStorage(storageStatus, pathStorage);
+                        CameraEncode.setPathStorage(true, pathStorage);
                     }
                     else if (!storageStatus) {
                         isStorageStatusChange = false;
                         CameraEncode.setPathStorage(false, null);
                     }
+                }
+
+                try {
+                    Thread.sleep(100);
+                }
+                catch (InterruptedException ignored) {
                 }
             }
         }
@@ -162,6 +189,32 @@ public final class CameraThread {
             e.printStackTrace();
         }
     }
+    private final CameraEncode.ICameraEncodeCallback cameraEncodeCallback = new CameraEncode.ICameraEncodeCallback() {
+        @Override
+        public void onVideoStartSave(int camId, String path, long time) {
+
+        }
+
+        @Override
+        public void onVideoStop(int camId) {
+
+        }
+
+        @Override
+        public void onStreamSuccess(int camId, String urlStream) {
+
+        }
+
+        @Override
+        public void onStreamError(int camId) {
+
+        }
+
+        @Override
+        public void onImageSaveStorage(String path) {
+
+        }
+    };
 
     public interface ICameraThreadCallback {
         void onCameraConnect(int camId);

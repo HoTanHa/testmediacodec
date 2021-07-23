@@ -48,6 +48,7 @@ import java.net.URI;
 import java.net.URISyntaxException;
 import java.nio.ByteBuffer;
 import java.util.Arrays;
+import java.util.Calendar;
 import java.util.Collections;
 import java.util.Date;
 import java.util.List;
@@ -65,13 +66,26 @@ public class MainActivity extends AppCompatActivity {
         System.loadLibrary("native-lib");
     }
 
-    private Button btnStreamOn;
-    private Button btnStreamOff;
+    private static String LINK_STREAM1 = "rtmp://192.168.1.4:1935/live/camera3";
+    private static String LINK_STREAM2 = "rtmp://192.168.1.4:1935/live/camera4";
+    private static String LINK_PLAYBACK = "rtmp://192.168.1.4:1935/live/playback";
+    private static String LINK_HOST = "192.168.1.4";
+
+
+    private Button btnStreamOn1;
+    private Button btnStreamOff1;
     private Button btnStreamOn2;
     private Button btnStreamOff2;
-    private Button btnConnectWebSk;
-    private Button btnCloseWebSk;
+    private Button btnSave;
+    private Button btnNoSD;
 
+    private static String PathSDCARD = "/mnt/media_rw/8013-10EF";
+//    private static String PathSDCARD = "/mnt/media_rw/2431-0AFA";
+
+    private Button btnOnPlb;
+    private Button btnStopPlb;
+    private Button btnOnRTP;
+    private Button btnStopRTP;
 
     private static final int CAMERA_PERMISSION_CODE = 1;//100;
     private static final int STORAGE_PERMISSION_CODE = 1;//101;
@@ -82,7 +96,6 @@ public class MainActivity extends AppCompatActivity {
     private CameraManager cameraManager;
     private final int cameraWidth = 1280;
     private final int cameraHeight = 720;
-    private Timer timer;
     private int countTimer_record = 0;
     private int countTimer_takePhoto = 0;
 
@@ -98,17 +111,35 @@ public class MainActivity extends AppCompatActivity {
         setContentView(R.layout.activity_main);
 
         // Example of a call to a native method
-        btnStreamOn = this.findViewById(R.id.buttonStreamOn);
+        btnStreamOn1 = this.findViewById(R.id.button_on1);
+        btnStreamOn1.setOnClickListener(mOnClickListener);
 
-        btnStreamOff = this.findViewById(R.id.buttonStreamOff);
+        btnStreamOn2 = this.findViewById(R.id.button_on2);
+        btnStreamOn2.setOnClickListener(mOnClickListener);
 
-        btnStreamOn2 = this.findViewById(R.id.buttonStream0n2);
+        btnStreamOff1 = this.findViewById(R.id.button_off1);
+        btnStreamOff1.setOnClickListener(mOnClickListener);
 
-        btnStreamOff2 = this.findViewById(R.id.buttonStreamOff2);
+        btnStreamOff2 = this.findViewById(R.id.button_off2);
+        btnStreamOff2.setOnClickListener(mOnClickListener);
 
-        btnConnectWebSk = this.findViewById(R.id.btnConnectWebsk);
+        btnSave = this.findViewById(R.id.button_save);
+        btnSave.setOnClickListener(mOnClickListener);
 
-        btnCloseWebSk = this.findViewById(R.id.btnCloseWebsk);
+        btnNoSD = this.findViewById(R.id.button_nosd);
+        btnNoSD.setOnClickListener(mOnClickListener);
+
+        btnOnPlb = this.findViewById(R.id.button_OnPlb);
+        btnOnPlb.setOnClickListener(mOnClickListener);
+
+        btnStopPlb = this.findViewById(R.id.button_StopPlb);
+        btnStopPlb.setOnClickListener(mOnClickListener);
+
+        btnOnRTP = this.findViewById(R.id.button_OnRTP);
+        btnOnRTP.setOnClickListener(mOnClickListener);
+
+        btnStopRTP = this.findViewById(R.id.button_StopRTP);
+        btnStopRTP.setOnClickListener(mOnClickListener);
 
 
         if (ContextCompat.checkSelfPermission(getApplicationContext(), Manifest.permission.CAMERA) !=
@@ -124,6 +155,19 @@ public class MainActivity extends AppCompatActivity {
         tv.setText(stringFromJNI());
         threadTest.start();
 
+        Timer mTimer = new Timer();
+        mTimer.schedule(new TimerTask() {
+            @Override
+            public void run() {
+                if (cameraThread != null) {
+                    Date date = Calendar.getInstance().getTime();
+                    latitude = date.getSeconds() * 0.15657f + 10.0f;
+                    longitude = date.getSeconds() * 0.4523f + 100.2f;
+                    speed = date.getSeconds() * 1.1441f;
+                    cameraThread.setInfoLocation(latitude, longitude, speed);
+                }
+            }
+        }, 1000, 1000);
 
 //        String ad = CommonFunction.getDateTime64(new Date());
 //
@@ -173,6 +217,9 @@ public class MainActivity extends AppCompatActivity {
         }
     };
 
+    double longitude = 0.0f;
+    double latitude = 0.0f;
+    double speed = 0.0f;
     private final Thread threadTest = new Thread(new Runnable() {
         @Override
         public void run() {
@@ -181,6 +228,8 @@ public class MainActivity extends AppCompatActivity {
                 cameraThread.setCameraThreadCallback(cameraThreadCallback);
                 cameraThread.start();
             }
+
+
 //            checkLogicalMultiCamera();
 //            cameraEncode = new CameraEncode(getApplicationContext(), cameraId,
 //                    Environment.getExternalStorageDirectory().getPath());
@@ -276,7 +325,48 @@ public class MainActivity extends AppCompatActivity {
         webSocketClient.connect();
     }
 
+    private final View.OnClickListener mOnClickListener = new View.OnClickListener() {
+        @Override
+        public void onClick(View v) {
+            switch (v.getId()) {
+                case R.id.button_on1:
+                    Log.i(TAG, "onClick: on1 stream");
+                    cameraThread.startStreamRtmp(0, LINK_STREAM1);
+                    break;
+                case R.id.button_on2:
+                    Log.i(TAG, "onClick: on2 stream");
+                    cameraThread.startStreamRtmp(1, LINK_STREAM2);
+                    break;
+                case R.id.button_off1:
+                    Log.i(TAG, "onClick: off1 stream");
+                    cameraThread.stopStream(0);
+                    break;
+                case R.id.button_off2:
+                    Log.i(TAG, "onClick: off2 stream");
+                    cameraThread.stopStream(1);
+                    break;
+                case R.id.button_save:
+                    Log.i(TAG, "onClick: set storage on on");
+                    cameraThread.setStorageStatus(true, PathSDCARD);
+                    break;
+                case R.id.button_nosd:
+                    Log.i(TAG, "onClick: set storage off off");
+                    cameraThread.setStorageStatus(false, null);
+                    break;
+                case R.id.button_OnPlb:
+                    break;
+                case R.id.button_StopPlb:
 
+                    break;
+                case R.id.button_OnRTP:
+
+                    break;
+                case R.id.button_StopRTP:
+//
+                    break;
+            }
+        }
+    };
     private void sendWebSocketMessage(String msg) {
         if (webSocketClient != null && webSocketClient.isOpen()) {
             webSocketClient.send(msg);

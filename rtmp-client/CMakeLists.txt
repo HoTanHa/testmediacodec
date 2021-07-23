@@ -33,8 +33,7 @@ add_library( # Sets the name of the library.
              src/main/cpp/librtmp/rtmp.c
              src/main/cpp/librtmp/rtmp.h
              src/main/cpp/librtmp/rtmp_sys.h
-             src/main/cpp/flvmuxer/xiecc_rtmp.c
-             src/main/cpp/flvmuxer/xiecc_rtmp.h)
+        )
 
 include_directories(src/main/cpp/librtmp)
 

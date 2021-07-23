@@ -1,9 +1,11 @@
 package com.example.testcameramediacodec;
 
+import android.content.Context;
 import android.graphics.Bitmap;
 import android.graphics.ImageFormat;
 import android.graphics.Rect;
 import android.graphics.YuvImage;
+import android.os.Environment;
 import android.util.Log;
 
 
@@ -53,11 +55,13 @@ public class ImageHttp {
     private static int countFail = 0;
 
     private static final int QUALITY_JPEG = 70;
+    private Context mContext;
 
 
-    public ImageHttp(int serialNumber, String path) {
+    public ImageHttp(int serialNumber, String path, Context context) {
         ImageHttp.serialNumber = serialNumber;
         this.pathStorage = path;
+        this.mContext = context;
     }
 
     public void setImageSendCallBack(ImageSendCallBack callBack) {
@@ -139,6 +143,8 @@ public class ImageHttp {
                     }
                     catch (IOException e) {
 //                        e.printStackTrace();
+                        String log = "Send Image Buffer: connection error.. " + e.toString();
+                        imageSendCallBack.onLogResult(log);
                     }
                     finally {
                         setCountFail(result);
@@ -146,55 +152,135 @@ public class ImageHttp {
                             imageSendCallBack.onImageSendSuccess(camIdReal, date);
                         }
                         else {
-                            saveImage(imageOS, camIdReal, date);
+                            String path = saveImage(imageOS, camIdReal, date);
+                            if (path != null) {
+                                imageSendCallBack.onImageSave(path);
+                            }
+                            else {
+                                String path2 = saveImageOnExternal(imageOS, camIdReal, date);
+                                if (path2 != null) {
+                                    imageSendCallBack.onImageSave(path2);
+                                }
+                                else {
+                                    imageSendCallBack.onImageCreateFail(camId);
+                                }
+                            }
                         }
                     }
                 }
                 else {
-                    saveImage(imageOS, camIdReal, date);
+                    String path = saveImage(imageOS, camIdReal, date);
+                    if (path != null) {
+                        imageSendCallBack.onImageSave(path);
+                    }
+                    else {
+                        String path2 = saveImageOnExternal(imageOS, camIdReal, date);
+                        if (path2 != null) {
+                            imageSendCallBack.onImageSave(path2);
+                        }
+                        else {
+                            imageSendCallBack.onImageCreateFail(camId);
+                        }
+                    }
                 }
             }
         }).start();
     }
 
-    public void send(byte [] rawImageNV21, int camId, Date date, boolean send) {
-        byte [] rawImage = Arrays.copyOf(rawImageNV21, rawImageNV21.length);
+    public void send(byte[] rawImageNV21, int camId, Date date, boolean send) {
+        byte[] rawImage = Arrays.copyOf(rawImageNV21, rawImageNV21.length);
 
-        new Thread(new Runnable() {
-            @Override
-            public void run() {
-                byte[] finalRawImage = ImageUtil.YUV420SPtoNV21(rawImageNV21, rawImage, 1280,720);
-                int camIdReal = camId + 1;
-                ByteArrayOutputStream imageOS = NV21toJPEG(finalRawImage,1280,720,70);
+        new Thread(() -> {
+            byte[] finalRawImage = ImageUtil.YUV420SPtoNV21(rawImageNV21, rawImage, 1280, 720);
+            int camIdReal = camId + 1;
+            ByteArrayOutputStream imageOS = NV21toJPEG(finalRawImage, 1280, 720, 70);
 
-                if ((imageOS == null)) {// || (imageOS.size() > (150 * 1024))) {
-                    Log.d(TAG, "run: Create Image Fail..!!!!.." + camId);
-                    imageSendCallBack.onImageCreateFail(camId);
-                    return;
+            boolean result = false;
+            if (send) {
+                try {
+                    result = http_post_image(imageOS, camIdReal, date);
                 }
-                boolean result = false;
-                if (send) {
-                    try {
-                        result = http_post_image(imageOS, camIdReal, date);
-                    }
-                    catch (IOException e) {
+                catch (IOException e) {
 //                        e.printStackTrace();
+                    String log = "Send Image Buffer: connection error.. " + e.toString();
+                    imageSendCallBack.onLogResult(log);
+                }
+                finally {
+                    setCountFail(result);
+                    if (result) {
+                        imageSendCallBack.onImageSendSuccess(camIdReal, date);
                     }
-                    finally {
-                        setCountFail(result);
-                        if (result) {
-                            imageSendCallBack.onImageSendSuccess(camIdReal, date);
+                    else {
+                        String path = saveImage(imageOS, camIdReal, date);
+                        if (path != null) {
+                            imageSendCallBack.onImageSave(path);
                         }
                         else {
-                            saveImage(imageOS, camIdReal, date);
+                            String path2 = saveImageOnExternal(imageOS, camIdReal, date);
+                            if (path2 != null) {
+                                imageSendCallBack.onImageSave(path2);
+                            }
+                            else {
+                                imageSendCallBack.onImageCreateFail(camId);
+                            }
                         }
                     }
                 }
+            }
+            else {
+                String path = saveImage(imageOS, camIdReal, date);
+                if (path != null) {
+                    imageSendCallBack.onImageSave(path);
+                }
                 else {
-                    saveImage(imageOS, camIdReal, date);
+                    String path2 = saveImageOnExternal(imageOS, camIdReal, date);
+                    if (path2 != null) {
+                        imageSendCallBack.onImageSave(path2);
+                    }
+                    else {
+                        imageSendCallBack.onImageCreateFail(camId);
+                    }
                 }
             }
         }).start();
+    }
+
+    private String saveImageOnExternal(ByteArrayOutputStream outputStream, int camId, Date date) {
+        String folder = "image_" + serialNumber;
+        final File dir = new File(mContext.getExternalFilesDir(Environment.DIRECTORY_PICTURES), folder);
+        Log.d(TAG, "path=" + dir.toString());
+        if (!dir.exists()) {
+            if (!dir.mkdirs()) {
+                Log.d(TAG, "saveImage: Cannot create folder image!!");
+                return null;
+            }
+        }
+        String nameImage = "img_" + camId + "_" + date.getTime() + ".jpg";
+        String path = dir.getPath() + File.separator + nameImage;
+        FileOutputStream fos = null;
+        try {
+            fos = new FileOutputStream(path);
+            outputStream.writeTo(fos);
+            fos.close();
+        }
+        catch (IOException e) {
+            e.printStackTrace();
+        }
+        finally {
+            if (fos != null) {
+                Log.i(TAG, "saveImage: " + path);
+                File checkFile = new File(path);
+                if (checkFile.exists() && (checkFile.length() == outputStream.size())) {
+                    return path;
+                }
+                else {
+                    return null;
+                }
+            }
+            else {
+                return null;
+            }
+        }
     }
 
     public static ByteArrayOutputStream NV21toJPEG(byte[] nv21, int width, int height, int quality) {
@@ -233,10 +319,9 @@ public class ImageHttp {
         return out;
     }
 
-    private void saveImage(ByteArrayOutputStream outputStream, int camId, Date date) {
+    private String saveImage(ByteArrayOutputStream outputStream, int camId, Date date) {
         if (pathStorage == null) {
-            imageSendCallBack.onImageCreateFail(camId - 1);
-            return;
+            return null;
         }
         String folder = "image_" + serialNumber;
         final File dir = new File(pathStorage, folder);
@@ -244,8 +329,7 @@ public class ImageHttp {
         if (!dir.exists()) {
             if (!dir.mkdirs()) {
                 Log.d(TAG, "saveImage: Cannot create folder image!!");
-                imageSendCallBack.onImageCreateFail(camId - 1);
-                return;
+                return null;
             }
         }
         String nameImage = "img_" + camId + "_" + date.getTime() + ".jpg";
@@ -262,10 +346,16 @@ public class ImageHttp {
         finally {
             if (fos != null) {
                 Log.i(TAG, "saveImage: " + path);
-                imageSendCallBack.onImageSave(path);
+                File checkFile = new File(path);
+                if (checkFile.exists() && (checkFile.length() == outputStream.size())) {
+                    return path;
+                }
+                else {
+                    return null;
+                }
             }
             else {
-                imageSendCallBack.onImageCreateFail(camId - 1);
+                return null;
             }
         }
     }
@@ -403,16 +493,15 @@ public class ImageHttp {
         buffer = new byte[bufferSize];
         bytesRead = fileInputStream.read(buffer, 0, bufferSize);
         /******************************************************/
-        if (USE_ROUTER) {
-            URL url = new URL(urlServer);
-            connection = (HttpURLConnection) url.openConnection();
-        }
-        else {
-            /*****************************************************/
-            int portProxy = DEV_TEST ? PORT_PROXY_DEV : PORT_PROXY;
-            Proxy proxy = new Proxy(Proxy.Type.HTTP, new InetSocketAddress(HOST_PROXY, portProxy));
-            connection = (HttpURLConnection) new URL(urlServer).openConnection(proxy);
-        }
+//        if (USE_ROUTER) {
+        URL url = new URL(urlServer);
+        connection = (HttpURLConnection) url.openConnection();
+//        }
+//        else {
+//            int portProxy = DEV_TEST ? PORT_PROXY_DEV : PORT_PROXY;
+//            Proxy proxy = new Proxy(Proxy.Type.HTTP, new InetSocketAddress(HOST_PROXY, portProxy));
+//            connection = (HttpURLConnection) new URL(urlServer).openConnection(proxy);
+//        }
         /******************************************************/
         connection.setDoInput(true);
         connection.setDoOutput(true);
@@ -444,9 +533,10 @@ public class ImageHttp {
         }
         String body = br.readLine();
         Log.i(TAG, "http_post_image: " + path);
-        Log.i(TAG, "http_post_image: Response code " + serverResponseCode
-                + "..Body: " + body
-                + "..." + camId + "..." + date);
+        String log = "Image Storage: Code " + serverResponseCode
+                + "..Body: " + body + "..." + camId + "..." + date;
+        Log.i(TAG, "http_post_image_" + log);
+        imageSendCallBack.onLogResult(log);
         boolean result = false;
         if ((serverResponseCode == RES_CODE) && (body.equals(RES_BODY))) {
             result = true;
@@ -472,16 +562,15 @@ public class ImageHttp {
         byte[] buffer = stream.toByteArray();
         bufferSize = stream.size();
         /******************************************************/
-        if (USE_ROUTER) {
-            URL url = new URL(urlServer);
-            connection = (HttpURLConnection) url.openConnection();
-        }
-        else {
-            /*****************************************************/
-            int portProxy = DEV_TEST ? PORT_PROXY_DEV : PORT_PROXY;
-            Proxy proxy = new Proxy(Proxy.Type.HTTP, new InetSocketAddress(HOST_PROXY, portProxy));
-            connection = (HttpURLConnection) new URL(urlServer).openConnection(proxy);
-        }
+//        if (USE_ROUTER) {
+        URL url = new URL(urlServer);
+        connection = (HttpURLConnection) url.openConnection();
+//        }
+//        else {
+//            int portProxy = DEV_TEST ? PORT_PROXY_DEV : PORT_PROXY;
+//            Proxy proxy = new Proxy(Proxy.Type.HTTP, new InetSocketAddress(HOST_PROXY, portProxy));
+//            connection = (HttpURLConnection) new URL(urlServer).openConnection(proxy);
+//        }
         /******************************************************/
         connection.setDoInput(true);
         connection.setDoOutput(true);
@@ -511,16 +600,18 @@ public class ImageHttp {
             br = new BufferedReader(new InputStreamReader(connection.getErrorStream()));
         }
         String body = br.readLine();
-        Log.i(TAG, "http_post_image_buffer: Response code " + serverResponseCode
-                + "..Body: " + body
-                + "..." + camId + "..." + date);
+
+        String log = "Image Buffer: Code " + serverResponseCode
+                + "..Body: " + body + "..." + camId + "..." + date;
+        Log.i(TAG, "http_post_image_buffer: " + log);
+        imageSendCallBack.onLogResult(log);
+
         boolean result = false;
         if ((serverResponseCode == RES_CODE) && (body.equals(RES_BODY))) {
             result = true;
         }
         return result;
     }
-
     public interface ImageSendCallBack {
         void onImageSendStorage(String path, boolean result);
 
@@ -529,5 +620,7 @@ public class ImageHttp {
         void onImageSave(String path);
 
         void onImageCreateFail(int camId);
+
+        void onLogResult(String log);
     }
 }
