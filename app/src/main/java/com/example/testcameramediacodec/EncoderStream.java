@@ -5,6 +5,7 @@ import android.media.MediaCodecInfo;
 import android.media.MediaFormat;
 import android.os.Bundle;
 import android.os.Handler;
+import android.os.HandlerThread;
 import android.util.Log;
 import android.view.Surface;
 
@@ -35,6 +36,9 @@ public class EncoderStream {
     private MediaFormat mediaFormat = null;
 
 
+    private HandlerThread backgroundThread;
+    private Handler backgroundHandler;
+
     public EncoderStream() {
         configure();
     }
@@ -55,6 +59,10 @@ public class EncoderStream {
     }
 
     private synchronized void configure() {
+
+        backgroundThread = new HandlerThread("CodecStream");
+        backgroundThread.start();
+        backgroundHandler = new Handler(backgroundThread.getLooper());
         try {
             mediaCodec = MediaCodec.createEncoderByType(ENCODE_VIDEO_TYPE);
         } catch (IOException e) {
@@ -86,7 +94,7 @@ public class EncoderStream {
         mediaCodec.configure(format, null, null, MediaCodec.CONFIGURE_FLAG_ENCODE);
         // create Surface encode
         encodeSurface = mediaCodec.createInputSurface();
-        mediaCodec.setCallback(callback);
+        mediaCodec.setCallback(callback, backgroundHandler);
     }
 
     private MediaCodec.Callback callback = new MediaCodec.Callback() {
@@ -174,6 +182,16 @@ public class EncoderStream {
             e.printStackTrace();
         }
         releaseEncoder();
+
+        backgroundThread.quitSafely();
+        try {
+            backgroundThread.join();
+            backgroundThread = null;
+            backgroundHandler = null;
+        }
+        catch (InterruptedException e) {
+            Log.e(TAG, "stopBackgroundThread: " + e.getMessage());
+        }
     }
 
     public void requestKeyFrame() {

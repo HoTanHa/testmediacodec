@@ -16,12 +16,12 @@
 #include "myJniDefine.h"
 
 CameraDevice::CameraDevice()
-	: camId(1),
-	  isInfoChange(false),
-	  isRunning(true),
-	  isStreaming(false),
-	  mMainWindow(nullptr),
-	  mStreamWindow(nullptr) {
+		: camId(1),
+		  isInfoChange(false),
+		  isRunning(true),
+		  isStreaming(false),
+		  mMainWindow(nullptr),
+		  mStreamWindow(nullptr) {
 
 	strInfo = (char *) malloc(120);
 	memset(strInfo, 0, 120);
@@ -49,6 +49,7 @@ CameraDevice::~CameraDevice() {
 	delete[] bufferStream;
 }
 
+#include <chrono>
 void CameraDevice::create_info_in_image(void *vptr_args) {
 	auto *mCamera = reinterpret_cast<CameraDevice *>(vptr_args);
 	time_t time_unix = 0;
@@ -66,12 +67,12 @@ void CameraDevice::create_info_in_image(void *vptr_args) {
 		count++;
 		time_unix = time(NULL);
 		// TODO: set lai CameraDevice::sIsInfoChange
-		if ((time_compare != time_unix) || (mCamera->isInfoChange) || (count == 10)) {
+		if ((time_compare != time_unix) || (count == 10)) {
 			time_compare = time_unix;
 			count = 0;
 			mCamera->isInfoChange = false;
 			localtime_r(&time_unix, &tm);
-			CameraDevice::sInfo_mutex.lock();
+			CameraDevice::sInfo_mutex.try_lock();
 			memset(mCamera->strInfo, 0, 110);
 			snprintf(mCamera->strInfo, 100,
 					 "Cam%d %04d/%02d/%02d %02d:%02d:%02d %s %9.6lf %10.6lf %5.1lfKm/h %s",
@@ -81,7 +82,7 @@ void CameraDevice::create_info_in_image(void *vptr_args) {
 			length = strlen(mCamera->strInfo);
 			CameraDevice::sInfo_mutex.unlock();
 
-			mCamera->info_mutex.lock();
+			mCamera->info_mutex.try_lock();
 			memset(mCamera->bufferInfoY, 128, BUFFER_INFO_SIZE);
 			int pixCrCb_tmp = 0;
 			int pixCrCb_tmp11;
@@ -101,6 +102,7 @@ void CameraDevice::create_info_in_image(void *vptr_args) {
 			mCamera->info_mutex.unlock();
 		}
 	}
+	loge("final final...%d"  ,mCamera->camId);
 }
 
 void CameraDevice::drawFrameToSurfaceStream(void *vptr_args) {
