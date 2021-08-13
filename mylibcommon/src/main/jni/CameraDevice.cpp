@@ -50,6 +50,7 @@ CameraDevice::~CameraDevice() {
 }
 
 #include <chrono>
+
 void CameraDevice::create_info_in_image(void *vptr_args) {
 	auto *mCamera = reinterpret_cast<CameraDevice *>(vptr_args);
 	time_t time_unix = 0;
@@ -102,15 +103,12 @@ void CameraDevice::create_info_in_image(void *vptr_args) {
 			mCamera->info_mutex.unlock();
 		}
 	}
-	loge("final final...%d"  ,mCamera->camId);
+	loge("final final...%d", mCamera->camId);
 }
 
-void CameraDevice::drawFrameToSurfaceStream(void *vptr_args) {
+void CameraDevice::draw_frame_to_surface_stream(void *vptr_args) {
 	auto *mCamera = reinterpret_cast<CameraDevice *>(vptr_args);
-
-	ANativeWindow_Buffer buffer;
-	int count = 0;
-	mCamera->isStreaming = true;
+//	mCamera->isStreaming = true;
 	while ((mCamera->isStreaming && mCamera->isRunning)) {
 		usleep(100000);
 
@@ -120,47 +118,55 @@ void CameraDevice::drawFrameToSurfaceStream(void *vptr_args) {
 		auto *sY0 = (uint8_t *) mCamera->bufferMain;
 		auto *sY1 = (uint8_t *) (mCamera->bufferMain + WIDTH_IMG);
 		auto *sUV0 = (uint8_t *) (mCamera->bufferMain + SIZE_MAIN_IMAGE);
-		auto *sUV1 = (uint8_t *) (mCamera->bufferMain + SIZE_MAIN_IMAGE + WIDTH_IMG);
 		auto *d360 = (uint8_t *) mCamera->bufferStream;
 		auto *dUV = (uint8_t *) (mCamera->bufferStream + SIZE_STREAM_IMAGE);
 
 		for (int i = 0; i < 12; ++i) {
-			for (int j = 0; j < WIDTH_STREAM / 2; ++j) {
-				*d360 = (sY0[0] + sY0[1] + sY1[0] + sY1[0]) / 4;
-				d360++;
-				*d360 = (sY0[2] + sY0[3] + sY1[2] + sY1[3]) / 4;
-				d360++;
+			for (int j = 0; j < (WIDTH_STREAM / 2); ++j) {
+				*(d360++) = (sY0[0] + sY0[1] + sY1[0] + sY1[0]) / 4;
+				*(d360++) = (sY0[2] + sY0[3] + sY1[2] + sY1[3]) / 4;
 				sY0 += 4;
 				sY1 += 4;
 				*(dUV++) = (sUV0[0]);// + sUV0[2] + sUV1[0] + sUV1[2]) / 4;
 				*(dUV++) = (sUV0[1]);// + sUV0[3] + sUV1[1] + sUV1[3]) / 4;
 				sUV0 += 4;
-				sUV1 += 4;
 			}
 			sY0 += WIDTH_IMG;
 			sY1 += WIDTH_IMG;
 			sUV0 += WIDTH_IMG;
-			sUV1 += WIDTH_IMG;
 		}
-		for (int i = 12; i < 360; ++i) {
-			for (int j = 0; j < WIDTH_STREAM / 2; ++j) {
-				*d360 = *sY0;
-				d360++;
-				sY0 += 2;
-				*d360 = *sY0;
-				d360++;
-				sY0 += 2;
+		for (int i = 12; i < 180; ++i) {
+			for (int j = 0; j < (WIDTH_STREAM / 4); ++j) {
+				*(d360++) = sY0[0];
+				*(d360++) = sY0[2];
+//				sY0 += 4;
+				*(d360++) = sY0[4];
+				*(d360++) = sY0[6];
+				sY0 += 8;
+
 				*(dUV++) = (sUV0[0]); //+ sUV0[2] + sUV1[0] + sUV1[2]) / 4;
 				*(dUV++) = (sUV0[1]);// + sUV0[3] + sUV1[1] + sUV1[3]) / 4;
-				sUV0 += 4;
-				sUV1 += 4;
+//				sUV0 += 4;
+				*(dUV++) = (sUV0[4]); //+ sUV0[2] + sUV1[0] + sUV1[2]) / 4;
+				*(dUV++) = (sUV0[5]);// + sUV0[3] + sUV1[1] + sUV1[3]) / 4;
+				sUV0 += 8;
 			}
 			sY0 += WIDTH_IMG;
 			sUV0 += WIDTH_IMG;
-			sUV1 += WIDTH_IMG;
+		}
+		for (int i = 180; i < 360; ++i) {
+			for (int j = 0; j < (WIDTH_STREAM / 4); ++j) {
+				*(d360++) = sY0[0];
+				*(d360++) = sY0[2];
+//				sY0 += 4;
+				*(d360++) = sY0[4];
+				*(d360++) = sY0[6];
+				sY0 += 8;
+			}
+			sY0 += WIDTH_IMG;
 		}
 		mCamera->draw_mutex.unlock();
-
+		ANativeWindow_Buffer buffer;
 		if (ANativeWindow_lock(mCamera->mStreamWindow, &buffer, NULL) == 0) {
 			auto *dest = (uint8_t *) buffer.bits;
 			memcpy(dest, mCamera->bufferStream, SIZE_Y_STREAM);
@@ -184,8 +190,9 @@ void CameraDevice::setMainWindow(ANativeWindow *mainWindow) {
 
 void CameraDevice::setStreamWindow(ANativeWindow *streamWindow) {
 	this->mStreamWindow = streamWindow;
+	this->isStreaming = true;
 	ANativeWindow_setBuffersGeometry(mStreamWindow, WIDTH_STREAM, HEIGHT_STREAM, FORMAT_SURFACE);
-	drawStream_thread = std::thread(drawFrameToSurfaceStream, (void *) this);
+	this->drawStream_thread = std::thread(draw_frame_to_surface_stream, (void *) this);
 }
 
 void CameraDevice::stopStreamWindow() {

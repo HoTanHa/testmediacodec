@@ -1,3 +1,4 @@
+include ':javaServer'
 include ':rtmp-client'
 include ':mylibcommon'
 include ':app'

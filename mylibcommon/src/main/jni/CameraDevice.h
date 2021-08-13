@@ -59,7 +59,7 @@ private:
 
 	static void create_info_in_image(void *vptr_args);
 
-	static void drawFrameToSurfaceStream(void *vptr_args);
+	static void draw_frame_to_surface_stream(void *vptr_args);
 
 public:
 	CameraDevice();

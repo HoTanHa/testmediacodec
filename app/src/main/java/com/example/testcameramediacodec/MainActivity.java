@@ -7,7 +7,6 @@ import androidx.core.content.ContextCompat;
 import androidx.localbroadcastmanager.content.LocalBroadcastManager;
 
 import android.Manifest;
-import android.app.Application;
 import android.content.Context;
 import android.content.Intent;
 import android.content.pm.PackageManager;
@@ -16,46 +15,28 @@ import android.hardware.camera2.CameraCharacteristics;
 import android.hardware.camera2.CameraDevice;
 import android.hardware.camera2.CameraManager;
 import android.hardware.camera2.CameraMetadata;
-import android.media.MediaCodec;
-import android.media.MediaCodecInfo;
-import android.media.MediaCodecList;
-import android.media.MediaFormat;
-import android.net.Uri;
-import android.net.wifi.WifiConfiguration;
-import android.net.wifi.WifiManager;
 import android.os.Build;
 import android.os.Bundle;
-import android.os.Environment;
-import android.os.Handler;
-import android.provider.MediaStore;
 import android.util.Log;
 import android.view.Surface;
 import android.view.View;
 import android.widget.Button;
 import android.widget.TextView;
-import android.widget.Toast;
 
-import com.example.mylibcommon.CommonFunction;
 import com.example.mylibcommon.NativeCamera;
 
 import org.java_websocket.client.WebSocketClient;
 import org.java_websocket.framing.CloseFrame;
 import org.java_websocket.handshake.ServerHandshake;
 
-import java.io.File;
-import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
-import java.nio.ByteBuffer;
-import java.util.Arrays;
 import java.util.Calendar;
 import java.util.Collections;
 import java.util.Date;
-import java.util.List;
 import java.util.Set;
 import java.util.Timer;
 import java.util.TimerTask;
-
 
 public class MainActivity extends AppCompatActivity {
 
@@ -99,7 +80,7 @@ public class MainActivity extends AppCompatActivity {
     private int countTimer_record = 0;
     private int countTimer_takePhoto = 0;
 
-    CameraObj cameraObj = null;
+    CameraData cameraData = null;
     CameraEncode cameraEncode = null;
     private final boolean notUseService = false;
     private WebSocketClient webSocketClient;
@@ -224,8 +205,7 @@ public class MainActivity extends AppCompatActivity {
         @Override
         public void run() {
             if (cameraThread == null) {
-                cameraThread = new CameraThread(getApplicationContext(), 999959999);
-                cameraThread.setCameraThreadCallback(cameraThreadCallback);
+                cameraThread = new CameraThread(getApplicationContext(), 999959999, cameraThreadCallback);
                 cameraThread.start();
             }
 

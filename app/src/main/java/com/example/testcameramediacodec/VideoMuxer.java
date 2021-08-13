@@ -19,6 +19,7 @@ import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.text.SimpleDateFormat;
 import java.util.Date;
+import java.util.Locale;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 
@@ -101,7 +102,7 @@ public class VideoMuxer {
         buffLock = new ReentrantLock();
     }
 
-    public void startStreamRtp(String host){
+    public void startStreamRtp(String host) {
         if (!isStreamingRTP) {
             isStreamingRTP = true;
             this.hostRTP = host;
@@ -109,8 +110,8 @@ public class VideoMuxer {
         }
     }
 
-    public void stopStreamRtp(){
-        if (h264Packetizer!=null){
+    public void stopStreamRtp() {
+        if (h264Packetizer != null) {
             h264Packetizer.stop();
             h264Packetizer = null;
         }
@@ -127,11 +128,12 @@ public class VideoMuxer {
             InetAddress inetAddress = null;
             try {
                 inetAddress = InetAddress.getByName(hostRTP);
-            } catch (UnknownHostException e) {
+            }
+            catch (UnknownHostException e) {
                 e.printStackTrace();
             }
             if (inetAddress != null) {
-                h264Packetizer.setDestination(inetAddress, 9998+camId*2, 8998+camId*2);
+                h264Packetizer.setDestination(inetAddress, 9998 + camId * 2, 8998 + camId * 2);
                 h264Packetizer.start();
             }
         }
@@ -143,7 +145,7 @@ public class VideoMuxer {
         ByteBuffer byteBufferSPS = format.getByteBuffer("csd-0");
         ByteBuffer byteBufferPPS = format.getByteBuffer("csd-1");
         if (byteBufferSPS != null && byteBufferPPS != null) {
-            if (sps_buff==null && pps_buff==null) {
+            if (sps_buff == null && pps_buff == null) {
                 sps_buff = new byte[byteBufferSPS.array().length];
                 pps_buff = new byte[byteBufferPPS.array().length];
                 System.arraycopy(byteBufferSPS.array(), 0, sps_buff, 0, byteBufferSPS.array().length);
@@ -192,7 +194,8 @@ public class VideoMuxer {
     public void setVideoFolderPath(boolean sdcardStatus, String path) {
         if (!this.mSdcardStatus && sdcardStatus) {
             this.mFolderPath = path;
-        } else if (!sdcardStatus) {
+        }
+        else if (!sdcardStatus) {
             this.mFolderPath = null;
             //// TODO : stop the mediaMuxer if save video
         }
@@ -243,7 +246,7 @@ public class VideoMuxer {
             }
             muxerLock.unlock();
 
-            if (rtmpMuxer!=null || h264Packetizer!=null) {
+             if (rtmpMuxer != null || h264Packetizer != null) {
                 byte[] frameData = new byte[buffer.remaining()];
                 buffer.get(frameData, 0, frameData.length);
 
@@ -265,8 +268,8 @@ public class VideoMuxer {
         }
     }
 
-    public void startSaveVideoFile(){
-        if (isStartCreateFile){
+    public void startSaveVideoFile() {
+        if (isStartCreateFile) {
             return;
         }
         isStartCreateFile = true;
@@ -286,7 +289,8 @@ public class VideoMuxer {
         }
         try {
             mediaMuxer = new MediaMuxer(fileName, MediaMuxer.OutputFormat.MUXER_OUTPUT_MPEG_4);
-        } catch (IOException e) {
+        }
+        catch (IOException e) {
             e.printStackTrace();
             return;
         }
@@ -303,7 +307,8 @@ public class VideoMuxer {
 
         try {
             mediaMuxer.stop();
-        } catch (IllegalStateException ignored) {
+        }
+        catch (IllegalStateException ignored) {
 
         }
         videoMuxerCallback.onVideoStartSave(fileName, timeStartSave);
@@ -321,7 +326,8 @@ public class VideoMuxer {
                 try {
                     mediaMuxer.stop();
                     mediaMuxer.release();
-                }catch (Exception ignored){
+                }
+                catch (Exception ignored) {
 
                 }
                 mediaMuxer = null;
@@ -330,6 +336,7 @@ public class VideoMuxer {
         }
         videoTrack = null;
         audioTrack = null;
+        videoMuxerCallback.onVideoStop();
         muxerLock.unlock();
     }
 
@@ -350,7 +357,7 @@ public class VideoMuxer {
             }
         }
         Date mDate = new Date();
-        String sTimeFolder = new SimpleDateFormat("yyyyMMdd_HH").format(mDate);
+        String sTimeFolder = new SimpleDateFormat("yyyyMMdd_HH", Locale.ROOT).format(mDate);
         long time_unix = mDate.getTime() / 1000;
         long timeFolder_unix = time_unix - time_unix % 3600;
         String path2 = path1 + File.separator + "cam" + camIdFolder + "_" + sTimeFolder + "_" + timeFolder_unix;
@@ -360,7 +367,7 @@ public class VideoMuxer {
                 return null;
             }
         }
-        String timeStamp = new SimpleDateFormat("yyyyMMdd_HHmmss").format(mDate);
+        String timeStamp = new SimpleDateFormat("yyyyMMdd_HHmmss", Locale.ROOT).format(mDate);
         String name = path2 + File.separator + "VID_" + camIdFolder + "_" + timeStamp + ".mp4";
         timeStartSave = mDate.getTime() / 1000;
         return name;

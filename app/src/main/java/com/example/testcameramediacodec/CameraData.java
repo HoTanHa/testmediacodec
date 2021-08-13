@@ -22,8 +22,8 @@ import androidx.core.app.ActivityCompat;
 
 import java.util.ArrayList;
 
-public class CameraObj {
-    private static final String TAG = "CameraObj";
+public class CameraData {
+    private static final String TAG = "CameraData";
     private CameraDevice cameraDevice;
     private String sCameraId;
     private Context context;
@@ -33,15 +33,11 @@ public class CameraObj {
     private CameraCaptureSession cameraCaptureSession;
     private HandlerThread backgroundThread;
     private Handler backgroundHandler;
-    private CameraObjCallback callback;
-
-    public void setCameraObjCallback(CameraObjCallback mCallback) {
-        this.callback = mCallback;
-    }
-
-    public CameraObj(@NonNull Context ctx, @NonNull final String sCamId) {
+    private CameraDataCallback callback;
+    public CameraData(@NonNull Context ctx, @NonNull final String sCamId, CameraDataCallback mCallback) {
         this.context = ctx;
         this.sCameraId = sCamId;
+        this.callback = mCallback;
     }
 
     private final CameraDevice.StateCallback cameraDeviceCallback = new CameraDevice.StateCallback() {
@@ -49,24 +45,24 @@ public class CameraObj {
         @Override
         public void onOpened(@NonNull CameraDevice camera) {
             Log.d(TAG, "onOpened: Camera device on opened:.." + camera.getId());
-            CameraObj.this.cameraDevice = camera;
+            CameraData.this.cameraDevice = camera;
             createCameraCaptureSession();
-            callback.cameraOpened();
+            callback.cameraOpened(sCameraId);
         }
 
         @Override
         public void onDisconnected(@NonNull CameraDevice camera) {
             Log.d(TAG, "onDisconnected: Camera device on Disconnected:.." + camera.getId());
             camera.close();
-            CameraObj.this.cameraDevice = null;
-            callback.cameraDisconnected();
+            CameraData.this.cameraDevice = null;
+            callback.cameraDisconnected(sCameraId);
         }
 
         @Override
         public void onError(@NonNull CameraDevice camera, int error) {
             camera.close();
-            CameraObj.this.cameraDevice = null;
-            callback.cameraError();
+            CameraData.this.cameraDevice = null;
+            callback.cameraError(sCameraId);
         }
     };
 
@@ -75,7 +71,7 @@ public class CameraObj {
         public void onImageAvailable(ImageReader reader) {
             Image image = reader.acquireLatestImage();
             if (image!=null) {
-                callback.onRawImage(image);
+                callback.onRawImage(sCameraId, image);
                 image.close();
             }
         }
@@ -169,14 +165,14 @@ public class CameraObj {
         }
     }
 
-    public interface CameraObjCallback {
-        void cameraOpened();
+    public interface CameraDataCallback {
+        void cameraOpened(String sCamId);
 
-        void cameraError();
+        void cameraError(String sCamId);
 
-        void cameraDisconnected();
+        void cameraDisconnected(String sCamId);
 
-        void onRawImage(Image image);
+        void onRawImage(String sCamId, Image image);
 
     }
 }

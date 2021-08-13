@@ -89,23 +89,28 @@ public class RTMPMuxer {
      */
     private native int nClose(long rtmpPointer);
 
+    private Thread threadCloseRtmp = new Thread(this::syncClose);
+
     private synchronized void syncClose() {
+        if (rtmpPointer==0){
+            return;
+        }
+        long tempPointer = rtmpPointer;
+        rtmpPointer = 0;
         isSetupOk = false;
-        nClose(rtmpPointer);
+        nClose(tempPointer);
         rtmpMuxerCallback.onStopStream();
         rtmpPointer = 0;
     }
 
-    public synchronized int close() {
+    public int close() {
         if ((rtmpPointer == 0)|| (!isSetupOk)){
             return 0;
         }
-        new Thread(new Runnable() {
-            @Override
-            public void run() {
-                syncClose();
-            }
-        }).start();
+        if (this.threadCloseRtmp.isAlive()){
+            return 0;
+        }
+        threadCloseRtmp.start();
         return 0;
     }
 
@@ -119,9 +124,9 @@ public class RTMPMuxer {
     }
 
     public interface RTMPMuxerCallback {
-        public void onStreamSuccess();
+        void onStreamSuccess();
 
-        public void onStopStream();
+        void onStopStream();
     }
 
 }

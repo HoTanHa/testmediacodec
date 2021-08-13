@@ -54,7 +54,7 @@ public class EncoderStream {
         this.encodeDataCallback = encodeDataCallback;
     }
 
-    protected Surface getEncodeSurface() {
+    public Surface getEncodeSurface() {
         return encodeSurface;
     }
 
