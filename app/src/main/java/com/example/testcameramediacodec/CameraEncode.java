@@ -144,7 +144,6 @@ public class CameraEncode {
                     else if (time >= timeTmpSetPath) {
                         timeTmpSetPath = time + 1;
                         if (videoMuxer != null) {
-                            videoMuxer.setVideoFolderPath(storageStatus, pathStorage);
                             startSaveMp4();
                         }
                     }
@@ -283,8 +282,7 @@ public class CameraEncode {
 
     private void startSaveMp4() {
         if (videoMuxer != null && formatMain != null) {
-            videoMuxer.setVideoFormat(formatMain);
-            videoMuxer.startSaveVideoFile();
+            videoMuxer.startSaveVideoFile(pathStorage);
             if (encoderMain != null) {
                 encoderMain.requestKeyFrame();
             }
@@ -538,8 +536,8 @@ public class CameraEncode {
         @Override
         public void onEncodeFormatChange(MediaFormat videoFormat) {
             Log.d(TAG, "onEncodeFormatChange: Get video format encode Ok.." + camId);
-            isGetVideoMainFormat = true;
             formatMain = videoFormat;
+            isGetVideoMainFormat = true;
         }
 
         @Override

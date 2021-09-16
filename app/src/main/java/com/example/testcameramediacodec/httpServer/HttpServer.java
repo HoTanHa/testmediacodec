@@ -1,5 +1,7 @@
 package com.example.testcameramediacodec.httpServer;
 
+import android.content.Context;
+import android.os.Environment;
 import android.os.StatFs;
 import android.util.Base64;
 import android.util.Log;
@@ -37,12 +39,18 @@ public final class HttpServer extends NanoHTTPD {
     private final ArrayList<ArrayList<Long>> listHourFolder = new ArrayList<>();
     private final ArrayList<ArrayList<Long>> listTimeVideo = new ArrayList<>();
     private final Map<String, String> mapToken = new HashMap<>();
+    private final ArrayList<ImageData> listImage = new ArrayList<>();
 
     private long sdCardSize = 0;
     private long sdCardFreeSpace = 0;
 
-    public HttpServer(String pathSdCard) {
+    private int serialNumber = 0;
+    private Context mContext;
+
+    public HttpServer(Context context, String pathSdCard, int sn) {
         super(PORT);
+        this.mContext = context;
+        this.serialNumber = sn;
         Log.d(TAG, "HttpServer: Server starting");
         try {
             start(NanoHTTPD.SOCKET_READ_TIMEOUT, true);
@@ -63,22 +71,20 @@ public final class HttpServer extends NanoHTTPD {
         else {
             Log.d(TAG, "HttpServer: Path sdCard is null..!");
         }
-        new Thread(new Runnable() {
-            @Override
-            public void run() {
-                for (int i = 0; i < NUM_CAM; i++) {
-                    ArrayList<Long> item = new ArrayList<Long>();
-                    listHourFolder.add(item);
-                }
-                for (int i = 0; i < NUM_CAM; i++) {
-                    ArrayList<Long> item = new ArrayList<Long>();
-                    listTimeVideo.add(item);
-                }
-                for (int i = 0; i < NUM_CAM; i++) {
-                    readListVideoStorage(i);
-                }
-                getInfoStorage();
+        new Thread(() -> {
+            for (int i = 0; i < NUM_CAM; i++) {
+                ArrayList<Long> item = new ArrayList<Long>();
+                listHourFolder.add(item);
             }
+            for (int i = 0; i < NUM_CAM; i++) {
+                ArrayList<Long> item = new ArrayList<Long>();
+                listTimeVideo.add(item);
+            }
+            for (int i = 0; i < NUM_CAM; i++) {
+                readListVideoStorage(i);
+            }
+            readListImage();
+            getInfoStorage();
         }).start();
     }
 
@@ -97,18 +103,41 @@ public final class HttpServer extends NanoHTTPD {
         }
 
         if (uri.equals("/")) {
-            Response response = newFixedLengthResponse(Response.Status.OK, NanoHTTPD.MIME_PLAINTEXT, "ADSUN CAMERA BOX");
-            response.addHeader("Access-Control-Allow-Origin", "*");
+//            Response response = newFixedLengthResponse(Response.Status.OK, NanoHTTPD.MIME_PLAINTEXT, "ADSUN CAMERA BOX");
+//            response.addHeader("Access-Control-Allow-Origin", "*");
+//            return response;
+            String pathFile = "/storage/emulated/0/index.html";
+            FileInputStream fis = null;
+            File file = new File(pathFile);
+            try {
+                fis = new FileInputStream(file);
+            }
+            catch (FileNotFoundException e) {
+                return responseNotFound();
+            }
+            String type = pathFile.substring(pathFile.lastIndexOf(".") + 1).toLowerCase();
+
+            if (type.isEmpty()) {
+                return newFixedLengthResponse(Response.Status.OK, MIME_PLAINTEXT, fis, file.length());
+            }
+            String mineType = null;
+            try {
+                mineType = NanoHTTPD.mimeTypes().get(type);
+            }
+            catch (Exception e) {
+                e.printStackTrace();
+            }
+            if (mineType == null) {
+                return newFixedLengthResponse(Response.Status.OK, MIME_PLAINTEXT, fis, file.length());
+            }
+            Response response = newFixedLengthResponse(Response.Status.OK, MIME_TYPES.get(type), fis, file.length());
+//            Response response = newFixedLengthResponse(Response.Status.OK, "application/octet-stream", fis, file.length());
+            response.closeConnection(true);
             return response;
         }
         else if (uri.equals("/test")) {
-            if (token == null || !mapToken.containsKey(ipAddress) || !token.equals(mapToken.get(ipAddress))) {
-                return responseNotToken();
-            }
-//            Response r = newFixedLengthResponse(Response.Status.REDIRECT, MIME_HTML, "");
-            Response r = newFixedLengthResponse(Response.Status.REDIRECT, MIME_PLAINTEXT, "");
-            r.addHeader("Location", "http://" + host + "/");
-            return r;
+            JSONObject object = getVideoIntervalGroup();
+            return newFixedLengthResponse(Response.Status.OK, "application/json", object.toString());
         }
         else if (uri.equals("/getKey")) {
             String key = getKey();
@@ -163,6 +192,7 @@ public final class HttpServer extends NanoHTTPD {
                     cam = Integer.parseInt(param.get("camera").get(0));
                     sDate = param.get("date").get(0);
                     date = new SimpleDateFormat("yyyyMMdd", Locale.ROOT).parse(sDate);
+                    Log.d(TAG, "serve: " + date);
                 }
                 catch (NumberFormatException | ParseException exception) {
                     return responseParamError();
@@ -172,7 +202,20 @@ public final class HttpServer extends NanoHTTPD {
             return responseParamError();
         }
         else if (uri.equals("/favicon.ico")) {
-            responseNotFound();
+//            responseNotFound();image/x-icon
+            String pathFile = "/storage/emulated/0/favicon.ico";
+            FileInputStream fis = null;
+            File file = new File(pathFile);
+            try {
+                fis = new FileInputStream(file);
+            }
+            catch (FileNotFoundException e) {
+                e.printStackTrace();
+                return responseNotFound();
+            }
+            Response response = newFixedLengthResponse(Response.Status.OK, "image/x-icon", fis, file.length());
+            response.closeConnection(true);
+            return response;
         }
         else if (uri.startsWith("/root")) {
             return responseRootDirectory(uri);
@@ -210,9 +253,100 @@ public final class HttpServer extends NanoHTTPD {
             Log.d(TAG, "serve: Query video..." + cam + "....." + time);
             return responseListVideoInHour(cam, time);
         }
-        else if (uri.equals("/api/info")){
+        else if (uri.equals("/api/info")) {
             return responseInfo();
         }
+        else if (uri.equals("/api/image")) {
+            if (param.containsKey("timeStart") && param.containsKey("timeEnd")) {
+                try {
+                    long timeStart = Long.parseLong(param.get("timeStart").get(0));
+                    long timeEnd = Long.parseLong(param.get("timeEnd").get(0));
+                    return responseListImage(timeStart, timeEnd);
+                }
+                catch (Exception e) {
+                    return responseParamError();
+                }
+            }
+            return responseParamError();
+        }
+        else if (uri.equals("/api/getImage")) {
+            if (param.containsKey("time") && param.containsKey("camera")) {
+                try {
+                    long timeMs = Long.parseLong(param.get("time").get(0));//+ 7 * 3600000;
+                    int cam = Integer.parseInt(param.get("camera").get(0));
+                    return responseImageFile(cam, timeMs);
+                }
+                catch (Exception e) {
+                    return responseParamError();
+                }
+            }
+            return responseParamError();
+        }
+        else if (uri.equals("/api/infoDevice")) {
+            return responseInfoDevice();
+        }
+        else if (uri.equals("/api/dataWorkTime")) {
+            if (param.containsKey("date")) {
+                try {
+                    long timeMs = Long.parseLong(param.get("date").get(0));
+                    return responseDataWorkTime(timeMs);
+                }
+                catch (Exception e) {
+                    return responseParamError();
+                }
+            }
+            return responseParamError();
+        }
+        else if (uri.equals("/api/dataDungDo")) {
+            if (param.containsKey("date")) {
+                try {
+                    long timeMs = Long.parseLong(param.get("date").get(0));
+                    return responseDataDungDo(timeMs);
+                }
+                catch (Exception e) {
+                    return responseParamError();
+                }
+            }
+            return responseParamError();
+        }
+        else if (uri.equals("/api/dataHanhTrinh")) {
+            if (param.containsKey("date")) {
+                try {
+                    long timeMs = Long.parseLong(param.get("date").get(0));
+                    return responseDataHanhTrinh(timeMs);
+                }
+                catch (Exception e) {
+                    return responseParamError();
+                }
+            }
+            return responseParamError();
+        }
+        else if (uri.equals("/api/dataSpeed")) {
+            if (param.containsKey("date")) {
+                try {
+                    long timeMs = Long.parseLong(param.get("date").get(0));
+                    return responseDataSpeed(timeMs);
+                }
+                catch (Exception e) {
+                    return responseParamError();
+                }
+            }
+            return responseParamError();
+        }
+        else if (uri.equals("/api/overSpeed")) {
+            if (param.containsKey("date") && param.containsKey("limit")) {
+                try {
+                    long timeMs = Long.parseLong(param.get("date").get(0));
+                    int speed = Integer.parseInt(param.get("limit").get(0));
+                    return responseOverSpeed(timeMs, speed);
+                }
+                catch (Exception e) {
+                    return responseParamError();
+                }
+            }
+            return responseParamError();
+        }
+
         return responseNotFound();
     }
 
@@ -220,7 +354,93 @@ public final class HttpServer extends NanoHTTPD {
 //            "videoStream":{"size":{"width":640,"height":360},"fps":10},
 //            "image":{"size":{"width":1280,"height":720},"time":1},
 
-    private Response responseInfo(){
+    private Response responseInfoDevice() {
+        String responseData = LocationData.getThongTinThietBi();
+        return newFixedLengthResponse(Response.Status.OK, "application/json", responseData);
+    }
+
+    private Response responseDataWorkTime(long timeMs) {
+        Log.d(TAG, "responseDataWorkTime: " + timeMs);
+        String responseData = LocationData.getThoiGianLamViec(new Date(timeMs));
+        Response response = newFixedLengthResponse(Response.Status.OK, "application/json", responseData);
+        response.closeConnection(true);
+        return response;
+    }
+
+    private Response responseDataHanhTrinh(long timeMs) {
+        Log.d(TAG, "responseDataHanhTrinh: " + timeMs);
+        String responseData = LocationData.getDuLieuHanhTrinh(new Date(timeMs));
+        Response response = newFixedLengthResponse(Response.Status.OK, "application/json", responseData);
+        response.closeConnection(true);
+        return response;
+    }
+
+    private Response responseDataDungDo(long timeMs) {
+        Log.d(TAG, "responseDataDungDo: " + timeMs);
+        String responseData = LocationData.getDuLieuDungDo(new Date(timeMs));
+        Response response = newFixedLengthResponse(Response.Status.OK, "application/json", responseData);
+        response.closeConnection(true);
+        return response;
+    }
+
+    private Response responseDataSpeed(long timeMs) {
+        Log.d(TAG, "responseDataSpeed: " + timeMs);
+        String responseData = LocationData.getDuLieuTocDoTungGiay(new Date(timeMs));
+        Response response = newFixedLengthResponse(Response.Status.OK, "application/json", responseData);
+        response.closeConnection(true);
+        return response;
+    }
+
+    private Response responseOverSpeed(long timeMs, int limitSpeed) {
+        Log.d(TAG, "responseOverSpeed: " + timeMs + "....." + limitSpeed);
+        String responseData = LocationData.getQuaTocDo(new Date(timeMs), limitSpeed);
+        Response response = newFixedLengthResponse(Response.Status.OK, "application/json", responseData);
+        response.closeConnection(true);
+        return response;
+    }
+
+    private Response responseImageFile(int camId, long timeMs) {
+        long timeExactly = 0;
+        String pathFile = null;
+        for (ImageData item : listImage) {
+            if ((timeMs / 1000) == (item.getImageTimeMs() / 1000)) {
+                timeExactly = item.getImageTimeMs();
+                pathFile = item.getImagePath();
+                break;
+            }
+        }
+        if (timeExactly == 0) {
+            return responseParamError();
+        }
+        FileInputStream fis = null;
+        File file = new File(pathFile);
+        Log.d(TAG, "responseImageFile: " + pathFile);
+        try {
+            fis = new FileInputStream(file);
+        }
+        catch (FileNotFoundException e) {
+            e.printStackTrace();
+            return responseParamError();
+        }
+        Response response = newFixedLengthResponse(Response.Status.OK, "image/jpeg", fis, file.length());
+        response.closeConnection(true);
+        return response;
+    }
+
+    private Response responseListImage(long timeStart, long timeEnd) {
+        JSONArray imagesJson = new JSONArray();
+        int idCount = 1;
+        for (int i = 0; i < listImage.size(); i++) {
+            long time = listImage.get(i).getImageTimeMs();
+            if (time > timeStart && time < timeEnd) {
+                listImage.get(i).setId(idCount++);
+                imagesJson.put(listImage.get(i).getStringJSON());
+            }
+        }
+        return newFixedLengthResponse(Response.Status.OK, "application/json", imagesJson.toString());
+    }
+
+    private Response responseInfo() {
         JSONObject jsonInfo = new JSONObject();
         JSONObject jsonStorage = new JSONObject();
         JSONObject jsonVideoStorage = new JSONObject();
@@ -235,7 +455,7 @@ public final class HttpServer extends NanoHTTPD {
 
             jsonStorage.put("total", sdCardSize);
             jsonStorage.put("free", sdCardFreeSpace);
-            jsonInfo.put("storage", jsonStorage );
+            jsonInfo.put("storage", jsonStorage);
 
             jsonSizeVideo.put("width", 1280);
             jsonSizeVideo.put("height", 720);
@@ -498,6 +718,93 @@ public final class HttpServer extends NanoHTTPD {
         String res;
         res = jsonData.toString();
         return newFixedLengthResponse(Response.Status.OK, "application/json", res);
+    }
+
+    private void readListImage() {
+        readImageExternal();
+        readImageSdCard();
+        Collections.sort(listImage, ImageData.imageDataComparator);
+    }
+
+    private void readImageSdCard() {
+        if (pathStorage == null) {
+            return;
+        }
+        String imageDirPath = pathStorage + File.separator + "image_" + serialNumber;
+        File imageDir = new File(imageDirPath);
+        if (!imageDir.exists()) {
+            return;
+        }
+        File[] listOfFiles = imageDir.listFiles();
+        for (File item : listOfFiles) {
+            String name = item.getName();
+            boolean isNameImageSave = name.startsWith("img");
+            boolean isImageJpg = name.substring(name.lastIndexOf('.')).equals(".jpg");
+            if (isNameImageSave && isImageJpg) {
+                listImage.add(new ImageData(item.getPath()));
+            }
+        }
+    }
+
+    private void readImageExternal() {
+        String imgFolder = "image_" + serialNumber;
+        File imageDir = new File(mContext.getExternalFilesDir(Environment.DIRECTORY_PICTURES), imgFolder);
+        if (!imageDir.exists()) {
+            return;
+        }
+        File[] listOfFiles = imageDir.listFiles();
+        for (File item : listOfFiles) {
+            String name = item.getName();
+            boolean isNameImageSave = name.startsWith("img");
+            boolean isImageJpg = name.substring(name.lastIndexOf('.')).equals(".jpg");
+            if (isNameImageSave && isImageJpg) {
+                listImage.add(new ImageData(item.getPath()));
+            }
+        }
+    }
+
+    private JSONObject getVideoIntervalGroup() {
+        JSONObject dataJsonInterval = new JSONObject();
+        JSONArray arrayJsonInterval = new JSONArray();
+        int count = 1;
+        for (int idGroup = 0; idGroup < listTimeVideo.size(); idGroup++) {
+            ArrayList<Long> list = listTimeVideo.get(idGroup);
+            if (list == null || list.size() == 0) {
+                continue;
+            }
+            int group = idGroup + 1;
+            int numOfVideo = list.size();
+            if (numOfVideo == 0) {
+                continue;
+            }
+            int i = 0;
+            int j = 0;
+
+            long dateStart = list.get(0);
+            long dateEnd = list.get(numOfVideo - 1);
+
+            long begin, end;
+            while ((i < numOfVideo) && (list.get(i) < dateEnd)) {
+                begin = list.get(i);
+                j = i + 1;
+                for (; (j < numOfVideo) && (list.get(j) < dateEnd); j++) {
+                    if (list.get(j) > (list.get(j - 1) + 60)) {
+                        break;
+                    }
+                }
+                end = list.get(j - 1) + 60;
+                VideoInterval videoInterval = new VideoInterval(count++, group, begin, end);
+                arrayJsonInterval.put(videoInterval.toJson());
+                i = j;
+            }
+        }
+        try {
+            dataJsonInterval.put("dataInterval", arrayJsonInterval);
+        }
+        catch (JSONException e) {
+            e.printStackTrace();
+        }
+        return dataJsonInterval;
     }
 
     private String getKey() {

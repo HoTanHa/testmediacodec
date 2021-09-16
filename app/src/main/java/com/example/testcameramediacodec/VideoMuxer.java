@@ -25,8 +25,6 @@ import java.util.concurrent.locks.ReentrantLock;
 
 public class VideoMuxer {
     private final String TAG = "VideoEncode";
-    private String mFolderPath = null;
-    private boolean mSdcardStatus = false;
     private int camId;
 
     private byte[] bufferConfig;
@@ -75,7 +73,8 @@ public class VideoMuxer {
                 b[4] = bufferFrameTCP[4];
                 indexStream = 5;
                 min = 5;
-            } else {
+            }
+            else {
                 min = Math.min(len, (sizeFrame - indexStream));
                 System.arraycopy(bufferFrameTCP, indexStream, b, off, min);
                 indexStream += min;
@@ -115,6 +114,7 @@ public class VideoMuxer {
             h264Packetizer.stop();
             h264Packetizer = null;
         }
+        isStreamingRTP = false;
     }
 
     private Thread rtpSetupThread = new Thread(new Runnable() {
@@ -191,17 +191,6 @@ public class VideoMuxer {
 
     }
 
-    public void setVideoFolderPath(boolean sdcardStatus, String path) {
-        if (!this.mSdcardStatus && sdcardStatus) {
-            this.mFolderPath = path;
-        }
-        else if (!sdcardStatus) {
-            this.mFolderPath = null;
-            //// TODO : stop the mediaMuxer if save video
-        }
-        this.mSdcardStatus = sdcardStatus;
-    }
-
     private RTMPMuxer.RTMPMuxerCallback rtmpMuxerCallback = new RTMPMuxer.RTMPMuxerCallback() {
         @Override
         public void onStreamSuccess() {
@@ -246,7 +235,7 @@ public class VideoMuxer {
             }
             muxerLock.unlock();
 
-             if (rtmpMuxer != null || h264Packetizer != null) {
+            if (rtmpMuxer != null || h264Packetizer != null) {
                 byte[] frameData = new byte[buffer.remaining()];
                 buffer.get(frameData, 0, frameData.length);
 
@@ -268,22 +257,24 @@ public class VideoMuxer {
         }
     }
 
-    public void startSaveVideoFile() {
-        if (isStartCreateFile) {
+    public void startSaveVideoFile(String pathSdCard) {
+        if (isStartCreateFile || mediaMuxer != null) {
             return;
         }
         isStartCreateFile = true;
-        new Thread(new Runnable() {
-            @Override
-            public void run() {
-                saveVideoFile_t();
-                isStartCreateFile = false;
-            }
-        }).start();
+//        new Thread(new Runnable() {
+//            @Override
+//            public void run() {
+//                saveVideoFile_t();
+//                isStartCreateFile = false;
+//            }
+//        }).start();
+        saveVideoFile_t(pathSdCard);
+        isStartCreateFile = false;
     }
 
-    private synchronized void saveVideoFile_t() {
-        String fileName = getOutputMediaFileName();
+    private synchronized void saveVideoFile_t(String pathSdCard) {
+        String fileName = getOutputMediaFileName(pathSdCard);
         if (fileName == null) {
             return;
         }
@@ -292,6 +283,7 @@ public class VideoMuxer {
         }
         catch (IOException e) {
             e.printStackTrace();
+            mediaMuxer = null;
             return;
         }
         Log.d(TAG, "startSaveMp4: file name: " + fileName);
@@ -336,7 +328,6 @@ public class VideoMuxer {
         }
         videoTrack = null;
         audioTrack = null;
-        videoMuxerCallback.onVideoStop();
         muxerLock.unlock();
     }
 
@@ -347,7 +338,7 @@ public class VideoMuxer {
         return 0;
     }
 
-    private String getOutputMediaFileName() {
+    private String getOutputMediaFileName(String mFolderPath) {
         int camIdFolder = camId + 1;
         String path1 = mFolderPath + File.separator + "cam" + camIdFolder;
         File file1 = new File(path1);

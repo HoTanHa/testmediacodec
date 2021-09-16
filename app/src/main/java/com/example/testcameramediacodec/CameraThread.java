@@ -277,12 +277,13 @@ public final class CameraThread {
 
                 if (time >= timeCheckRunning) {
                     timeCheckRunning = time + 60;
-                    Log.d(TAG, "run: CameraThread is running ");
+                    Log.d(TAG, "run: CameraThread is running ...." + time);
                 }
                 if (time >= timeCheckCamExist) {
                     timeCheckCamExist = time + 2;
                     checkCameraExist();
                 }
+
                 if (isStorageStatusChange) {
                     if (storageStatus && (time > (timeSetStorage + 2))) {
                         isStorageStatusChange = false;
@@ -321,9 +322,9 @@ public final class CameraThread {
         catch (CameraAccessException e) {
             e.printStackTrace();
         }
-        for (String id:arrStrCamId
-             ) {
-            Log.i(TAG, "getCameraIdList: CamID............"  + id);
+        for (String id : arrStrCamId
+        ) {
+            Log.i(TAG, "getCameraIdList: CamID............" + id);
 
         }
     }
