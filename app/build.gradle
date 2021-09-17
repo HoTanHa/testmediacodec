@@ -5,7 +5,8 @@ plugins {
 android {
     compileSdkVersion 29
     buildToolsVersion '29.0.2'
-
+    aaptOptions.cruncherEnabled = false
+    aaptOptions.useNewCruncher = false
     defaultConfig {
         applicationId "com.example.testcameramediacodec"
         minSdkVersion 28
@@ -50,11 +51,13 @@ dependencies {
     implementation project(path: ':rtmp-client')
     implementation project(path: ':mylibcommon')
     implementation project(path: ':javaServer')
+    implementation project(path: ':qcar_encoder')
+    implementation project(path: ':gson-2.7')
+    implementation project(path: ':camera-sc600')
     testImplementation 'junit:junit:4.+'
     androidTestImplementation 'androidx.test.ext:junit:1.1.2'
     androidTestImplementation 'androidx.test.espresso:espresso-core:3.3.0'
-    implementation 'com.google.code.gson:gson:2.8.6'
+//    implementation 'com.google.code.gson:gson:2.8.6'
     implementation "org.java-websocket:Java-WebSocket:1.5.1"
     implementation 'org.nanohttpd:nanohttpd:2.3.1'
-    implementation project(":rtmp-client")
 }

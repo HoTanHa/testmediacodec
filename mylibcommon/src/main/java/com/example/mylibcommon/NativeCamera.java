@@ -3,6 +3,8 @@ package com.example.mylibcommon;
 import android.util.Log;
 import android.view.Surface;
 
+import java.util.Date;
+
 public class NativeCamera {
     static {
         System.loadLibrary("nativeCamera-jni");
@@ -82,5 +84,14 @@ public class NativeCamera {
             nCloseStream(nPointer);
         }
 
+    }
+
+    private native long getTimeS(long pointer);
+
+    public long getTimeMsImage() {
+        if (nPointer > 0) {
+            return getTimeS(nPointer) * 1000;
+        }
+        return System.currentTimeMillis();
     }
 }

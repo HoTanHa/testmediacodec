@@ -1,3 +1,4 @@
+include ':camera-sc600'
 include ':javaServer'
 include ':rtmp-client'
 include ':mylibcommon'

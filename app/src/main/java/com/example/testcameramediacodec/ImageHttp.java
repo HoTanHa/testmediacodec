@@ -93,94 +93,82 @@ public class ImageHttp {
     }
 
     public void send(String path) {
-        new Thread(new Runnable() {
-            @Override
-            public void run() {
-                boolean result = false;
-                try {
-                    result = http_post_image(path);
-                }
-                catch (IOException e) {
+        new Thread(() -> {
+            boolean result = false;
+            try {
+                result = http_post_image(path);
+            }
+            catch (IOException e) {
 //                    e.printStackTrace();
-                }
-                finally {
-                    setCountFail(result);
-                    imageSendCallBack.onImageSendStorage(path, result);
-                }
+            }
+            finally {
+                setCountFail(result);
+                imageSendCallBack.onImageSendStorage(path, result);
             }
         }).start();
     }
 
     public void send(ByteBuffer frame, int pixelFormat, int camId, Date date, boolean send) {
-        new Thread(new Runnable() {
-            @Override
-            public void run() {
-                final ByteBuffer readOnlyCopy = frame.asReadOnlyBuffer();
-                int camIdReal = camId + 1;
-                ByteArrayOutputStream imageOS = null;
-                if (pixelFormat == ImageFormat.YUV_422_888) {
-                    imageOS = yuvToJpeg(camIdReal, readOnlyCopy, 1280, 720, QUALITY_JPEG);
-                }
-                else if (pixelFormat == ImageFormat.NV21) {
-                    imageOS = yuvNV21ToJpeg(readOnlyCopy, 1280, 720, QUALITY_JPEG);
-                }
-//                else if (pixelFormat == UVCCamera.PIXEL_FORMAT_RGBX) {
-//                    imageOS = rgb888ToJpeg(readOnlyCopy, 1280, 720, QUALITY_JPEG);
-//                }
-//                else if (pixelFormat == UVCCamera.PIXEL_FORMAT_RGB565) {
-//                    imageOS = rgb565ToJpeg(readOnlyCopy, 1280, 720, QUALITY_JPEG);
-//                }
+        new Thread(() -> {
+            final ByteBuffer readOnlyCopy = frame.asReadOnlyBuffer();
+            int camIdReal = camId + 1;
+            ByteArrayOutputStream imageOS = null;
+            if (pixelFormat == ImageFormat.YUV_422_888) {
+                imageOS = yuvToJpeg(camIdReal, readOnlyCopy, 1280, 720, QUALITY_JPEG);
+            }
+            else if (pixelFormat == ImageFormat.NV21) {
+                imageOS = yuvNV21ToJpeg(readOnlyCopy, 1280, 720, QUALITY_JPEG);
+            }
 
-                if ((imageOS == null)) {// || (imageOS.size() > (150 * 1024))) {
-                    Log.d(TAG, "run: Create Image Fail..!!!!.." + camId);
-                    imageSendCallBack.onImageCreateFail(camId);
-                    return;
+            if ((imageOS == null)) {// || (imageOS.size() > (150 * 1024))) {
+                Log.d(TAG, "run: Create Image Fail..!!!!.." + camId);
+                imageSendCallBack.onImageCreateFail(camId);
+                return;
+            }
+            boolean result = false;
+            if (send) {
+                try {
+                    result = http_post_image(imageOS, camIdReal, date);
                 }
-                boolean result = false;
-                if (send) {
-                    try {
-                        result = http_post_image(imageOS, camIdReal, date);
-                    }
-                    catch (IOException e) {
+                catch (IOException e) {
 //                        e.printStackTrace();
-                        String log = "Send Image Buffer: connection error.. " + e.toString();
-                        imageSendCallBack.onLogResult(log);
-                    }
-                    finally {
-                        setCountFail(result);
-                        if (result) {
-                            imageSendCallBack.onImageSendSuccess(camIdReal, date);
-                        }
-                        else {
-                            String path = saveImage(imageOS, camIdReal, date);
-                            if (path != null) {
-                                imageSendCallBack.onImageSave(path);
-                            }
-                            else {
-                                String path2 = saveImageOnExternal(imageOS, camIdReal, date);
-                                if (path2 != null) {
-                                    imageSendCallBack.onImageSave(path2);
-                                }
-                                else {
-                                    imageSendCallBack.onImageCreateFail(camId);
-                                }
-                            }
-                        }
-                    }
+                    String log = "Send Image Buffer: connection error.. " + e.toString();
+                    imageSendCallBack.onLogResult(log);
                 }
-                else {
-                    String path = saveImage(imageOS, camIdReal, date);
-                    if (path != null) {
-                        imageSendCallBack.onImageSave(path);
+                finally {
+                    setCountFail(result);
+                    if (result) {
+                        imageSendCallBack.onImageSendSuccess(camIdReal, date);
                     }
                     else {
-                        String path2 = saveImageOnExternal(imageOS, camIdReal, date);
-                        if (path2 != null) {
-                            imageSendCallBack.onImageSave(path2);
+                        String path = saveImage(imageOS, camIdReal, date);
+                        if (path != null) {
+                            imageSendCallBack.onImageSave(path);
                         }
                         else {
-                            imageSendCallBack.onImageCreateFail(camId);
+                            String path2 = saveImageOnExternal(imageOS, camIdReal, date);
+                            if (path2 != null) {
+                                imageSendCallBack.onImageSave(path2);
+                            }
+                            else {
+                                imageSendCallBack.onImageCreateFail(camId);
+                            }
                         }
+                    }
+                }
+            }
+            else {
+                String path = saveImage(imageOS, camIdReal, date);
+                if (path != null) {
+                    imageSendCallBack.onImageSave(path);
+                }
+                else {
+                    String path2 = saveImageOnExternal(imageOS, camIdReal, date);
+                    if (path2 != null) {
+                        imageSendCallBack.onImageSave(path2);
+                    }
+                    else {
+                        imageSendCallBack.onImageCreateFail(camId);
                     }
                 }
             }
@@ -188,7 +176,7 @@ public class ImageHttp {
     }
 
     public void send(byte[] rawImageNV21, int camId, Date date, boolean send) {
-        byte[] rawImage = Arrays.copyOf(rawImageNV21, rawImageNV21.length);
+        byte[] rawImage = new byte[rawImageNV21.length];// Arrays.copyOf(rawImageNV21, rawImageNV21.length);
 
         new Thread(() -> {
             byte[] finalRawImage = ImageUtil.YUV420SPtoNV21(rawImageNV21, rawImage, 1280, 720);
@@ -387,18 +375,6 @@ public class ImageHttp {
         ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
         boolean res = yuvimage.compressToJpeg(new Rect(0, 0, width, height), quality, outputStream);
         if (res) {
-//            ByteArrayOutputStream outputStream1 = new ByteArrayOutputStream();
-//            YuvImage yuvImage1 = new YuvImage(data, ImageFormat.YUY2, width, height, null);
-//            boolean res2 = yuvImage1.compressToJpeg(new Rect(0, 0, width, height), quality, outputStream1);
-//            if (res2) {
-//                if (outputStream.size() > outputStream1.size()) {
-//                    return outputStream1;
-//                } else {
-//                    return outputStream;
-//                }
-//            } else {
-//                return null; //outputStream;
-//            }
             return outputStream;
         }
         else {

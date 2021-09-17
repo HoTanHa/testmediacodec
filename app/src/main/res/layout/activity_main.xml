@@ -27,16 +27,29 @@
 
             <Button
                 android:id="@+id/button_on1"
-                android:layout_width="192dp"
+                android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="Button_on1" />
+                android:text="on1" />
 
             <Button
                 android:id="@+id/button_off1"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
-                android:text="Button_off1" />
+                android:text="off1" />
+
+            <Button
+                android:id="@+id/button_on2"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="on2" />
+
+            <Button
+                android:id="@+id/button_off2"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="off2" />
         </LinearLayout>
 
         <LinearLayout
@@ -45,17 +58,30 @@
             android:orientation="horizontal">
 
             <Button
-                android:id="@+id/button_on2"
-                android:layout_width="192dp"
+                android:id="@+id/button_on3"
+                android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="Button_on2" />
+                android:text="on3" />
 
             <Button
-                android:id="@+id/button_off2"
+                android:id="@+id/button_off3"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
-                android:text="Button_off2" />
+                android:text="off3" />
+
+            <Button
+                android:id="@+id/button_on4"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="on4" />
+
+            <Button
+                android:id="@+id/button_off4"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="off4" />
         </LinearLayout>
 
         <LinearLayout
@@ -65,34 +91,29 @@
 
             <Button
                 android:id="@+id/button_save"
-                android:layout_width="192dp"
+                android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="Button_Save" />
+                android:text="Save" />
 
             <Button
                 android:id="@+id/button_nosd"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
-                android:text="Button_NoSD" />
-        </LinearLayout>
-        <LinearLayout
-            android:layout_width="match_parent"
-            android:layout_height="67dp"
-            android:orientation="horizontal">
+                android:text="NoSD" />
 
             <Button
                 android:id="@+id/button_OnPlb"
-                android:layout_width="192dp"
+                android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="Btn_OnPlayback" />
+                android:text="on_Plb" />
 
             <Button
                 android:id="@+id/button_StopPlb"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
-                android:text="Btn_StopPb" />
+                android:text="off_plb" />
         </LinearLayout>
         <LinearLayout
             android:layout_width="match_parent"
@@ -101,7 +122,7 @@
 
             <Button
                 android:id="@+id/button_OnRTP"
-                android:layout_width="192dp"
+                android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:text="Btn_OnRTP1" />
 
@@ -113,17 +134,26 @@
                 android:text="Btn_StopRTP1" />
         </LinearLayout>
 
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="67dp"
+            android:orientation="horizontal">
+
+            <Button
+                android:id="@+id/button_OnHttp"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Btn_OnRTP1" />
+
+            <Button
+                android:id="@+id/button_OffHttp"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="Btn_StopRTP1" />
+        </LinearLayout>
+
 
     </LinearLayout>
-
-    <TextView
-        android:id="@+id/textView"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="TextView"
-        app:layout_constraintBottom_toBottomOf="parent"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@+id/linearLayout" />
 
 </androidx.constraintlayout.widget.ConstraintLayout>

@@ -121,3 +121,12 @@ Java_com_example_mylibcommon_NativeCamera_nCloseStream(JNIEnv *env, jobject thiz
 	auto *nCamera = reinterpret_cast<CameraDevice *>(pointer);
 	nCamera->stopStreamWindow();
 }
+
+extern "C"
+JNIEXPORT jlong JNICALL
+Java_com_example_mylibcommon_NativeCamera_getTimeS(JNIEnv *env, jobject thiz, jlong pointer) {
+	// TODO: implement getTimeS()
+
+	auto *nCamera = reinterpret_cast<CameraDevice *>(pointer);
+	return nCamera->getTimeS();
+}

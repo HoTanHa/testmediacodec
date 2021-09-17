@@ -23,6 +23,7 @@ CameraDevice::CameraDevice()
 		  mMainWindow(nullptr),
 		  mStreamWindow(nullptr) {
 
+	timeS = time(NULL);
 	strInfo = (char *) malloc(120);
 	memset(strInfo, 0, 120);
 
@@ -84,6 +85,7 @@ void CameraDevice::create_info_in_image(void *vptr_args) {
 			CameraDevice::sInfo_mutex.unlock();
 
 			mCamera->info_mutex.try_lock();
+			mCamera->timeS = time_unix;
 			memset(mCamera->bufferInfoY, 128, BUFFER_INFO_SIZE);
 			int pixCrCb_tmp = 0;
 			int pixCrCb_tmp11;
@@ -241,6 +243,13 @@ void CameraDevice::setDriverInfo(char *ssBsXe, char *sGPLX) {
 	memset(CameraDevice::sDriverInfo, 0, 40);
 	snprintf(CameraDevice::sDriverInfo, 30, "%s", sGPLX);
 	CameraDevice::sInfo_mutex.unlock();
+}
+
+long CameraDevice::getTimeS(){
+	this->info_mutex.try_lock();
+	long time = this->timeS;
+	this->info_mutex.unlock();
+	return time;
 }
 
 double CameraDevice::sLatitude = 0.0f;

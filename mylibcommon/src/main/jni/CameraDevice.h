@@ -53,6 +53,7 @@ private:
 	volatile bool isRunning;
 	volatile bool isStreaming;
 
+	volatile long timeS;
 	ANativeWindow *mMainWindow;
 	ANativeWindow *mStreamWindow;
 
@@ -75,6 +76,8 @@ public:
 	void stopStreamWindow();
 
 	void drawBufferToMainWindow(uint8_t *rawImage);
+
+	long getTimeS();
 
 	static void setInfoLocation(double sLat, double sLon, double sSpeed);
 

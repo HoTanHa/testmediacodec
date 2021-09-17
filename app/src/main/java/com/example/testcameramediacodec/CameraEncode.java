@@ -7,6 +7,9 @@ import android.media.MediaFormat;
 import android.util.Log;
 import android.view.Surface;
 
+import com.example.camera_sc600.CamInfo;
+import com.example.camera_sc600.CameraCsi;
+import com.example.camera_sc600.CameraSC600;
 import com.example.mylibcommon.NativeCamera;
 
 import java.io.File;
@@ -15,13 +18,13 @@ import java.util.Date;
 
 public class CameraEncode {
     private static final String TAG = "Camera Encode";
-    private String sCameraId;
-    private CameraData cameraData;
     private NativeCamera nativeCamera;
     private Context context;
     private static int serialNumber = 0;
     private static final int TIME_IMAGE = 60;
     private static final int TIME_VIDEO = 60;
+
+    private CameraCsi cameraCsi;
 
     private MediaFormat formatMain;
     private EncoderMain encoderMain;
@@ -63,39 +66,18 @@ public class CameraEncode {
 
     private CameraEncode.ICameraEncodeCallback cameraEncodeCallback;
 
-    private byte[] byteImage = new byte[1280 * 720 * 3 / 2];
     private byte[] byteImageCopy = new byte[1280 * 720 * 3 / 2];
 
     public CameraEncode(Context context, String cameraId, int iCamId,
                         CameraEncode.ICameraEncodeCallback camEncCallback) {
         this.context = context;
-        this.sCameraId = cameraId;
         this.camId = iCamId;
         cameraEncodeCallback = camEncCallback;
+        cameraEncThread.start();
     }
 
     public synchronized void setCameraExist(boolean exist) {
         isCameraExist = exist;
-        if (isCameraExist) {
-            //// TODO: -- start configure or open camera
-            if (cameraEncThread.isAlive()) {
-                return;
-            }
-            cameraEncThread.start();
-        }
-        else {
-            //// TODO: -- stop camera
-            if (isRunning) {
-                isRunning = false;
-                try {
-                    cameraEncThread.join();
-                }
-                catch (InterruptedException e) {
-                    Log.e(TAG, "setCameraExist: " + e.getMessage());
-                }
-            }
-            close();
-        }
     }
 
     public boolean isCameraExist() {
@@ -194,8 +176,9 @@ public class CameraEncode {
         nativeCamera = new NativeCamera(camId);
         nativeCamera.setMainSurface(encoderMain.getEncodeSurface());
 
-        cameraData = new CameraData(this.context, this.sCameraId, this.cameraDataCallback);
-        cameraData.openCamera();
+        CameraSC600 cameraSC600 = CameraSC600.getInstance();
+        CamInfo camInfo = cameraSC600.getCamInfo(camId);
+        cameraCsi = new CameraCsi(camId, cameraCsiCallback);
 
         while (!isGetVideoMainFormat) {
             try {
@@ -210,49 +193,31 @@ public class CameraEncode {
         videoMuxer.setVideoFormat(formatMain);
     }
 
-    private final CameraData.CameraDataCallback cameraDataCallback = new CameraData.CameraDataCallback() {
+    private CameraCsi.CameraCsiCallback cameraCsiCallback = new CameraCsi.CameraCsiCallback() {
         @Override
-        public void cameraOpened(String sCamId) {
-            if (sCamId.equals(sCameraId)) {
-                isCamOpened = true;
-                timeOpenCamera = System.currentTimeMillis() / 1000;
-            }
+        public void onCameraOpen() {
+            isCamOpened = true;
+            timeOpenCamera = System.currentTimeMillis() / 1000;
         }
 
         @Override
-        public void cameraError(String sCamId) {
-            if (sCamId.equals(sCameraId)) {
-                isCamOpened = false;
-            }
+        public void onCameraClose() {
+            isCamOpened = false;
         }
 
         @Override
-        public void cameraDisconnected(String sCamId) {
-            if (sCamId.equals(sCameraId)) {
-                isCamOpened = false;
-            }
-        }
-
-        @Override
-        public void onRawImage(String sCamId, Image image) {
-            if (sCamId.equals(sCameraId)) {
-                byte[] iBuffer = ImageUtil.imageGetByteYUV_420_888(image, byteImage);
-                if (nativeCamera != null) {
-                    nativeCamera.drawBufferInfoToImage(iBuffer);
-                    if (getImage) {
-                        Date date = new Date();
-                        long timeTmp = date.getTime() / 1000;
-                        if (mTimeImage == timeTmp) {
-                            CameraEncode.isCreatingImageAll = true;
-                            isGettingImage = true;
-                            getImage = false;
-                            System.arraycopy(byteImage, 0, byteImageCopy, 0, byteImage.length);
-                            createImage(date);
-                        }
-                        mTimeImage = timeTmp;
-                    }
+        public void onRawData(ByteBuffer buffer) {
+            byte[] iBuffer = buffer.array();
+            if (nativeCamera != null) {
+                nativeCamera.drawBufferInfoToImage(iBuffer);
+                if (getImage) {
+                    Date date = new Date(nativeCamera.getTimeMsImage());
+                    CameraEncode.isCreatingImageAll = true;
+                    isGettingImage = true;
+                    getImage = false;
+                    System.arraycopy(iBuffer, 0, byteImageCopy, 0, iBuffer.length);
+                    createImage(date);
                 }
-                image.close();
             }
         }
     };
@@ -268,7 +233,7 @@ public class CameraEncode {
         return isCreatingImageAll;
     }
 
-    public static void setNumImageStorage(int num){
+    public static void setNumImageStorage(int num) {
         numImageStorage = num;
     }
 
@@ -320,97 +285,90 @@ public class CameraEncode {
         }
     }
 
-//    private Thread startStream = new Thread(new Runnable() {
-//        @Override
-//        public void run() {
-    private void startStream(){
-            isStartingStream = true;
-            isGetVideoFormatRtmp = false;
-            encoderStream = new EncoderStream();
-            encoderStream.setEncodeDataCallback(encStreamCallback);
+    private void startStream() {
+        isStartingStream = true;
+        isGetVideoFormatRtmp = false;
+        encoderStream = new EncoderStream();
+        encoderStream.setEncodeDataCallback(encStreamCallback);
 
-            encoderStream.start();
-            Surface surface = encoderStream.getEncodeSurface();
-            if (surface==null){
-                Log.e(TAG, "run: Surface to stream is null");
-                    cmdStopStream = true;
-                isStartingStream = false;
+        encoderStream.start();
+        Surface surface = encoderStream.getEncodeSurface();
+        if (surface == null) {
+            Log.e(TAG, "run: Surface to stream is null");
+            cmdStopStream = true;
+            isStartingStream = false;
+        }
+        nativeCamera.setStreamSurface(surface);
+        int tmp = 0;
+        while (!isGetVideoFormatRtmp) {
+            try {
+                Thread.sleep(100);
             }
-            nativeCamera.setStreamSurface(surface);
-            int tmp = 0;
-            while (!isGetVideoFormatRtmp) {
+            catch (InterruptedException ignored) {
+            }
+            tmp++;
+            if (tmp > 100) {
+                break;
+            }
+        }
+        if (isGetVideoFormatRtmp) {
+            videoStream = new VideoStream(camId);
+            videoStream.setVideoEncodeCallback(videoStreamCallback);
+            if (formatStream != null) {
+                videoStream.setVideoFormat(formatStream);
+            }
+            isGetResultSetupStream = false;
+            videoStream.startRtmpStream(urlServer);
+            while (!isGetResultSetupStream) {
                 try {
                     Thread.sleep(100);
                 }
                 catch (InterruptedException ignored) {
                 }
-                tmp++;
-                if (tmp > 100) {
-                    break;
-                }
             }
-            if (isGetVideoFormatRtmp) {
-                videoStream = new VideoStream(camId);
-                videoStream.setVideoEncodeCallback(videoStreamCallback);
-                if (formatStream != null) {
-                    videoStream.setVideoFormat(formatStream);
-                }
-                isGetResultSetupStream = false;
-                videoStream.startRtmpStream(urlServer);
-                while (!isGetResultSetupStream) {
-                    try {
-                        Thread.sleep(100);
-                    }
-                    catch (InterruptedException ignored) {
-                    }
-                }
-            }
-
-            if (!isLiveStream) {
-                cmdStopStream = true;
-            }
-            isStartingStream = false;
         }
-//    }, "startStreamThread");
 
-//    private Thread stopStream = new Thread(new Runnable() {
-//        @Override
-//        public void run() {
-    private void stopStream(){
-            isStoppingStream = true;
-            if (nativeCamera != null) {
-                nativeCamera.closeStream();
-            }
-            int tmp = 0;
-            while ((!isGetResultSetupStream) || (isStartingStream)) {
-                try {
-                    Thread.sleep(10);
-                }
-                catch (InterruptedException ignored) {
-                }
-                tmp++;
-                if (tmp >= 1000) {
-                    break;
-                }
-            }
-            if (videoStream != null) {
-                videoStream.stopRtmpStream();
-                videoStream = null;
-            }
-            if (encoderStream != null) {
-                encoderStream.stop();
-                encoderStream = null;
-            }
-            isStoppingStream = false;
+        if (!isLiveStream) {
+            cmdStopStream = true;
         }
+        isStartingStream = false;
+    }
+
+    private void stopStream() {
+        isStoppingStream = true;
+        if (nativeCamera != null) {
+            nativeCamera.closeStream();
+        }
+        int tmp = 0;
+        while ((!isGetResultSetupStream) || (isStartingStream)) {
+            try {
+                Thread.sleep(10);
+            }
+            catch (InterruptedException ignored) {
+            }
+            tmp++;
+            if (tmp >= 1000) {
+                break;
+            }
+        }
+        if (videoStream != null) {
+            videoStream.stopRtmpStream();
+            videoStream = null;
+        }
+        if (encoderStream != null) {
+            encoderStream.stop();
+            encoderStream = null;
+        }
+        isStoppingStream = false;
+    }
 //    }, "stopStreamThread");
 
     public synchronized void close() {
-        if (isLiveStream &&!isStoppingStream) {
+        if (isLiveStream && !isStoppingStream) {
 //            if (!stopStream.isAlive()) {
 //                stopStream.start();
 //            }
-            new Thread(() -> stopStream()).start();
+            new Thread(this::stopStream).start();
         }
         isRunning = false;
         try {
@@ -420,9 +378,9 @@ public class CameraEncode {
             e.printStackTrace();
         }
 
-        if (cameraData != null) {
-            cameraData.closeCamera();
-            cameraData = null;
+        if (cameraCsi != null) {
+            cameraCsi.close();
+            cameraCsi = null;
         }
 
         if (isGettingImage && isCreatingImageAll) {

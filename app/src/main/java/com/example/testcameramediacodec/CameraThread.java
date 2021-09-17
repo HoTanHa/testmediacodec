@@ -1,16 +1,14 @@
 package com.example.testcameramediacodec;
 
 import android.content.Context;
-import android.hardware.camera2.CameraAccessException;
-import android.hardware.camera2.CameraManager;
 import android.os.Environment;
 import android.util.Log;
 
+import com.example.camera_sc600.CameraSC600;
 import com.example.mylibcommon.NativeCamera;
 
 import java.io.File;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Date;
 
 public final class CameraThread {
@@ -33,7 +31,8 @@ public final class CameraThread {
 
     private boolean networkStatus = false;
 
-    private static ICameraThreadCallback cameraThreadCallback;
+    private static ICameraThreadCallback mCallback;
+    private CameraSC600 cameraSC600;
 
     public void setPrintLog(boolean isDebug) {
         printLog = isDebug;
@@ -43,11 +42,11 @@ public final class CameraThread {
         this.mContext = context;
         CameraThread.serialNumber = sn;
         CameraEncode.setSerialNumber(sn);
-        cameraThreadCallback = callback;
+        mCallback = callback;
     }
 
     public synchronized void start() {
-        if (cameraThreadCallback == null) {
+        if (mCallback == null) {
             Log.w(TAG, "start: Callback cameraThread is null");
             return;
         }
@@ -259,7 +258,12 @@ public final class CameraThread {
     private final Thread cameraThread = new Thread(new Runnable() {
         @Override
         public void run() {
-            getCameraIdList();
+
+
+            cameraSC600 = CameraSC600.getInstance();
+            for (int i = 0; i < 4; i++) {
+                arrStrCamId.add(Integer.toString(i));
+            }
             for (int i = 0; i < arrStrCamId.size(); i++) {
                 cameraEncodes.add(i, new CameraEncode(mContext, arrStrCamId.get(i), i, cameraEncodeCallback));
             }
@@ -314,21 +318,6 @@ public final class CameraThread {
 
     }
 
-    private void getCameraIdList() {
-        CameraManager cameraManager = (CameraManager) mContext.getSystemService(Context.CAMERA_SERVICE);
-        try {
-            arrStrCamId.addAll(Arrays.asList(cameraManager.getCameraIdList()));
-        }
-        catch (CameraAccessException e) {
-            e.printStackTrace();
-        }
-        for (String id : arrStrCamId
-        ) {
-            Log.i(TAG, "getCameraIdList: CamID............" + id);
-
-        }
-    }
-
     private final ImageHttp.ImageSendCallBack imageSendCallBack = new ImageHttp.ImageSendCallBack() {
         @Override
         public void onImageSendStorage(String path, boolean result) {
@@ -374,7 +363,7 @@ public final class CameraThread {
         @Override
         public void onLogResult(String log) {
             if (printLog) {
-                cameraThreadCallback.onLogCameraThread(log);
+                mCallback.onLogCameraThread(log);
             }
         }
     };
@@ -392,11 +381,12 @@ public final class CameraThread {
 
         @Override
         public void onStreamSuccess(int camId, String urlStream) {
-
+            mCallback.onStreamSuccess(camId, urlStream);
         }
 
         @Override
         public void onStreamError(int camId) {
+            mCallback.onStreamOff(camId);
 
         }
 
