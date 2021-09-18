@@ -23,8 +23,9 @@ import android.view.View;
 import android.widget.Button;
 import android.widget.TextView;
 
+import com.example.cameraFeature.CameraThread;
 import com.example.mylibcommon.NativeCamera;
-import com.example.testcameramediacodec.httpServer.HttpServer;
+import com.example.httpServer.HttpServer;
 
 import org.java_websocket.client.WebSocketClient;
 import org.java_websocket.framing.CloseFrame;
@@ -92,9 +93,6 @@ public class MainActivity extends AppCompatActivity {
     private int countTimer_record = 0;
     private int countTimer_takePhoto = 0;
 
-    CameraData cameraData = null;
-    CameraEncode cameraEncode = null;
-    private final boolean notUseService = false;
     private WebSocketClient webSocketClient;
 
 

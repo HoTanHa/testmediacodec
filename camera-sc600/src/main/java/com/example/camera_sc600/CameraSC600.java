@@ -1,11 +1,8 @@
 package com.example.camera_sc600;
 
-import com.quectel.qcarapi.cb.IQCarCamInStatusCB;
 import com.quectel.qcarapi.stream.QCarCamera;
-import com.quectel.qcarapi.util.QCarLog;
 
 import java.util.ArrayList;
-import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -22,7 +19,10 @@ public final class CameraSC600 {
     private CameraSC600() {
         isRunning = true;
 
-        camSC600Thread = new Thread(() -> {
+        camSC600Thread = new Thread(new Runnable() {
+            @Override
+            public void run() {
+
             CSI_NUMS[0] = SC600Params.CSI_NUM.CAMERA_CSI0;
             CSI_NUMS[1] = SC600Params.CSI_NUM.CAMERA_CSI2;
             for (int value : CSI_NUMS) {
@@ -40,7 +40,7 @@ public final class CameraSC600 {
             while (isRunning) {
 
             }
-        });
+        }});
     }
 
     public CamInfo getCamInfo(int camId) {

@@ -87,8 +87,10 @@ public class CameraCsi {
             }
         }
         byteBufferData = ByteBuffer.wrap(byteArray);
-        new Thread(
-                () -> {
+        new Thread(new Runnable() {
+            @Override
+            public void run() {
+
                     isRunning = true;
                     mCallback.onCameraOpen();
                     boolean bCheckFrame;
@@ -108,7 +110,7 @@ public class CameraCsi {
                         }
                     }
                     qCarCamera.stopVideoStream(inputChannel);
-                }
+                }}
         ).start();
     }
 

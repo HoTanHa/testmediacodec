@@ -51,8 +51,6 @@ dependencies {
     implementation project(path: ':rtmp-client')
     implementation project(path: ':mylibcommon')
     implementation project(path: ':javaServer')
-    implementation project(path: ':qcar_encoder')
-    implementation project(path: ':gson-2.7')
     implementation project(path: ':camera-sc600')
     testImplementation 'junit:junit:4.+'
     androidTestImplementation 'androidx.test.ext:junit:1.1.2'

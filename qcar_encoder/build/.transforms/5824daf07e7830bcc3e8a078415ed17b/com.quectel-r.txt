@@ -1,0 +1,2 @@
+com.quectel
+string app_name

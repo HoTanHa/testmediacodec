@@ -1038,7 +1038,7 @@
 07-26 13:18:04.808 20194 20194 E AndroidRuntime: java.lang.IllegalThreadStateException
 07-26 13:18:04.808 20194 20194 E AndroidRuntime: 	at java.lang.Thread.start(Thread.java:868)
 07-26 13:18:04.808 20194 20194 E AndroidRuntime: 	at com.example.testcameramediacodec.CameraEncode.stopStreamRtmp(CameraEncode.java:290)
-07-26 13:18:04.808 20194 20194 E AndroidRuntime: 	at com.example.testcameramediacodec.CameraThread.stopStream(CameraThread.java:126)
+07-26 13:18:04.808 20194 20194 E AndroidRuntime: 	at com.example.testcameramediacodec.CameraThreadExample.stopStream(CameraThread.java:126)
 07-26 13:18:04.808 20194 20194 E AndroidRuntime: 	at com.example.testcameramediacodec.MainActivity$5.onClick(MainActivity.java:342)
 07-26 13:18:04.808 20194 20194 E AndroidRuntime: 	at android.view.View.performClick(View.java:7273)
 07-26 13:18:04.808 20194 20194 E AndroidRuntime: 	at com.google.android.material.button.MaterialButton.performClick(MaterialButton.java:992)
