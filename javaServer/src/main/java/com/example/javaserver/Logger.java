@@ -1,8 +1,8 @@
-package com.example.javaserver;
+package com.htha.javaserver;
 
 import java.io.PrintStream;
 
-import com.example.javaserver.Server.ConnectionToClient;
+import com.htha.javaserver.Server.ConnectionToClient;
 
 public class Logger implements ServerListener, ClientListener {
 

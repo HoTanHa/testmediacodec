@@ -24,19 +24,21 @@ android {
         }
         ndk {
             abiFilters "armeabi","arm64-v8a", /*"armeabi-v7a", "x86",*/ "mips"
+//            abiFilters "arm64-v8a"
+//            abiFilters 'x86', 'x86_64', 'armeabi-v7a', 'arm64-v8a'
         }
         ndk {
             ldLibs "log"
         }
     }
-//    signingConfigs {
-//        main {
-//            storeFile file('/home/htha/Downloads/SC600/Android10_R06_AIS3.1.1_CLIENTV3.1.2_SDK3.5/MultiCameraDemo_v6.4.0/dvr/signApk/platform.jks') //签名文件路径
-//            storePassword "123456"
-//            keyAlias "quectel"
-//            keyPassword "123456"
-//        }
-//    }
+    signingConfigs {
+        main {
+            storeFile file('/home/htha/Downloads/SC600/Android10_R06_AIS3.1.1_CLIENTV3.1.2_SDK3.5/MultiCameraDemo_v6.4.0/dvr/signApk/platform.jks') //签名文件路径
+            storePassword "123456"
+            keyAlias "quectel"
+            keyPassword "123456"
+        }
+    }
     buildTypes {
         release {
             minifyEnabled false
@@ -45,7 +47,7 @@ android {
 
         debug {
             minifyEnabled false
-//            signingConfig signingConfigs.main
+            signingConfig signingConfigs.main
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard.cfg'
         }
     }
@@ -58,6 +60,7 @@ android {
     sourceSets {
         main {
             jniLibs.srcDirs = ['libs']
+            jni.srcDirs = []
         }
     }
     lintOptions {
@@ -80,14 +83,13 @@ dependencies {
 //    androidTestImplementation('com.android.support.test.espresso:espresso-core:2.2.2', {
 //        exclude group: 'com.android.support', module: 'support-annotations'
 //    })
-//    implementation 'com.android.support:appcompat-v7:25.4.0'
+    implementation 'com.android.support:appcompat-v7:25.4.0'
     implementation files('libs/gson-2.7.jar')
     implementation 'com.alibaba:fastjson:1.2.56'
     implementation project(path: ':rtmp-client')
-    implementation 'androidx.annotation:annotation:1.2.0'
     implementation project(path: ':mylibcommon')
     testImplementation 'junit:junit:4.+'
-//    implementation(name:'qcar_encoder', ext:'aar')
-    implementation project(path: ':qcar_encoder')
+    implementation(name:'qcar_encoder', ext:'aar')
+//    implementation project(path: ':qcar_encoder')
     implementation 'org.nanohttpd:nanohttpd:2.3.1'
 }

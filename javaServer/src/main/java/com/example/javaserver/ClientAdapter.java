@@ -1,4 +1,4 @@
-package com.example.javaserver;
+package com.htha.javaserver;
 
 public class ClientAdapter implements ClientListener {
 

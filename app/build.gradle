@@ -3,29 +3,56 @@ plugins {
 }
 
 android {
-    compileSdkVersion 29
-    buildToolsVersion '29.0.2'
+    compileSdkVersion 25
+    buildToolsVersion "28.0.3"
     aaptOptions.cruncherEnabled = false
     aaptOptions.useNewCruncher = false
     defaultConfig {
-        applicationId "com.example.testcameramediacodec"
-        minSdkVersion 28
-        targetSdkVersion 29
+        applicationId "com.htha.testcamsc600"
+        minSdkVersion 25
+        targetSdkVersion 25
         versionCode 1
         versionName "1.0"
 
-        testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
+//        testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
+        testInstrumentationRunner "android.support.test.runner.AndroidJUnitRunner"
         externalNativeBuild {
             cmake {
                 cppFlags "-std=c++11"
             }
         }
+        ndk {
+//            abiFilters "armeabi","arm64-v8a", /*"armeabi-v7a", "x86",*/ "mips"
+//            abiFilters "arm64-v8a"
+            abiFilters 'x86', 'x86_64', 'armeabi-v7a', 'arm64-v8a'
+        }
+        ndk {
+            ldLibs "log"
+        }
     }
-
+    dexOptions {
+        preDexLibraries false
+        jumboMode true
+        javaMaxHeapSize "4g"
+    }
+    signingConfigs {
+        main {
+            storeFile file('../signApk/platform.jks')
+            //签名文件路径
+            storePassword "123456"
+            keyAlias "quectel"
+            keyPassword "123456"
+        }
+    }
     buildTypes {
         release {
             minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+        }
+        debug {
+            minifyEnabled false
+            signingConfig signingConfigs.main
+            proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rule.pro'
         }
     }
     externalNativeBuild {
@@ -38,24 +65,43 @@ android {
         sourceCompatibility JavaVersion.VERSION_1_8
         targetCompatibility JavaVersion.VERSION_1_8
     }
+    lintOptions {
+        checkReleaseBuilds false
+        // Or, if you prefer, you can continue to check for errors in release builds,
+        // but continue the build even when errors are found:
+        abortOnError false
+    }
+    sourceSets {
+        main {
+            jniLibs.srcDirs = ['../camera-sc600/libs']
+            jni.srcDirs = []
+        }
+    }
+
+
+    repositories {
+        mavenCentral()
+        flatDir {
+            dirs '../camera-sc600/libs'
+            //this way we can find the .aar file in libs folder
+        }
+    }
     ndkVersion '21.1.6352462'
+
+
 }
 
 dependencies {
+    androidTestImplementation('com.android.support.test.espresso:espresso-core:2.2.2', {
+        exclude group: 'com.android.support', module: 'support-annotations'
+    })
 
-    implementation 'androidx.appcompat:appcompat:1.2.0'
-    implementation 'com.google.android.material:material:1.2.1'
-    implementation 'androidx.constraintlayout:constraintlayout:2.0.4'
-    implementation 'org.jetbrains:annotations:20.1.0'
-    implementation 'androidx.localbroadcastmanager:localbroadcastmanager:1.0.0'
+    implementation 'com.android.support:appcompat-v7:25.4.0'
     implementation project(path: ':rtmp-client')
     implementation project(path: ':mylibcommon')
-    implementation project(path: ':javaServer')
+//    implementation project(path: ':javaServer')
     implementation project(path: ':camera-sc600')
     testImplementation 'junit:junit:4.+'
-    androidTestImplementation 'androidx.test.ext:junit:1.1.2'
-    androidTestImplementation 'androidx.test.espresso:espresso-core:3.3.0'
-//    implementation 'com.google.code.gson:gson:2.8.6'
     implementation "org.java-websocket:Java-WebSocket:1.5.1"
     implementation 'org.nanohttpd:nanohttpd:2.3.1'
 }

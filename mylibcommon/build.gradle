@@ -3,13 +3,13 @@ plugins {
 }
 
 android {
-    compileSdkVersion 28
+    compileSdkVersion 25
     buildToolsVersion '29.0.2'
 
 
     defaultConfig {
-        minSdkVersion 28
-        targetSdkVersion 28
+        minSdkVersion 25
+        targetSdkVersion 25
         versionCode 1
         versionName "1.0"
 
@@ -42,6 +42,7 @@ android {
             path file('CMakeLists.txt')
         }
     }
+    ndkVersion '21.1.6352462'
 }
 
 dependencies {

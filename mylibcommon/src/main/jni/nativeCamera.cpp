@@ -9,7 +9,7 @@
 
 extern "C"
 JNIEXPORT void JNICALL
-Java_com_example_mylibcommon_NativeCamera_nCheckCameraList(JNIEnv *env, jclass clazz) {
+Java_com_htha_mylibcommon_NativeCamera_nCheckCameraList(JNIEnv *env, jclass clazz) {
 	// TODO: implement nCheckCameraList()
 	ACameraManager *camManager = ACameraManager_create();
 	ACameraIdList *cameraIds = nullptr;
@@ -32,7 +32,7 @@ Java_com_example_mylibcommon_NativeCamera_nCheckCameraList(JNIEnv *env, jclass c
 
 extern "C"
 JNIEXPORT jlong JNICALL
-Java_com_example_mylibcommon_NativeCamera_nativeAllocAndInit(JNIEnv *env, jobject thiz) {
+Java_com_htha_mylibcommon_NativeCamera_nativeAllocAndInit(JNIEnv *env, jobject thiz) {
 	// TODO: implement nativeAllocAndInit()
 	auto *nCamera = new CameraDevice();
 	return (jlong) nCamera;
@@ -40,7 +40,7 @@ Java_com_example_mylibcommon_NativeCamera_nativeAllocAndInit(JNIEnv *env, jobjec
 
 extern "C"
 JNIEXPORT void JNICALL
-Java_com_example_mylibcommon_NativeCamera_nClose(JNIEnv *env, jobject thiz, jlong pointer) {
+Java_com_htha_mylibcommon_NativeCamera_nClose(JNIEnv *env, jobject thiz, jlong pointer) {
 	// TODO: implement nClose()
 	auto *nCamera = reinterpret_cast<CameraDevice *>(pointer);
 	delete nCamera;
@@ -48,7 +48,7 @@ Java_com_example_mylibcommon_NativeCamera_nClose(JNIEnv *env, jobject thiz, jlon
 
 extern "C"
 JNIEXPORT void JNICALL
-Java_com_example_mylibcommon_NativeCamera_nSetCamId(JNIEnv *env, jobject thiz, jlong pointer,
+Java_com_htha_mylibcommon_NativeCamera_nSetCamId(JNIEnv *env, jobject thiz, jlong pointer,
 													jint cam_id) {
 	// TODO: implement nSetCamId()
 	auto *nCamera = reinterpret_cast<CameraDevice *>(pointer);
@@ -57,7 +57,7 @@ Java_com_example_mylibcommon_NativeCamera_nSetCamId(JNIEnv *env, jobject thiz, j
 
 extern "C"
 JNIEXPORT void JNICALL
-Java_com_example_mylibcommon_NativeCamera_nSetInfoLocation(JNIEnv *env, jclass clazz,
+Java_com_htha_mylibcommon_NativeCamera_nSetInfoLocation(JNIEnv *env, jclass clazz,
 														   jdouble lat, jdouble lon, jdouble speed
 ) {
 	// TODO: implement nSetInfoLocation()
@@ -67,7 +67,7 @@ Java_com_example_mylibcommon_NativeCamera_nSetInfoLocation(JNIEnv *env, jclass c
 extern "C"
 
 JNIEXPORT void JNICALL
-Java_com_example_mylibcommon_NativeCamera_nDrawBufferInfoToImage(JNIEnv *env, jobject thiz,
+Java_com_htha_mylibcommon_NativeCamera_nDrawBufferInfoToImage(JNIEnv *env, jobject thiz,
 																 jlong pointer,
 																 jbyteArray image_buffer) {
 	// TODO: implement nDrawBufferInfoToImage()
@@ -81,7 +81,7 @@ Java_com_example_mylibcommon_NativeCamera_nDrawBufferInfoToImage(JNIEnv *env, jo
 
 extern "C"
 JNIEXPORT void JNICALL
-Java_com_example_mylibcommon_NativeCamera_nSetDriverInfo(JNIEnv *env, jclass clazz,
+Java_com_htha_mylibcommon_NativeCamera_nSetDriverInfo(JNIEnv *env, jclass clazz,
 														 jstring bs,
 														 jstring gplx) {
 	// TODO: implement nSetDriverInfo()
@@ -96,7 +96,7 @@ Java_com_example_mylibcommon_NativeCamera_nSetDriverInfo(JNIEnv *env, jclass cla
 
 extern "C"
 JNIEXPORT void JNICALL
-Java_com_example_mylibcommon_NativeCamera_nSetMainSurface(JNIEnv *env, jobject thiz, jlong pointer,
+Java_com_htha_mylibcommon_NativeCamera_nSetMainSurface(JNIEnv *env, jobject thiz, jlong pointer,
 														  jobject surface) {
 	// TODO: implement nSetMainSurface()
 	auto *nCamera = reinterpret_cast<CameraDevice *>(pointer);
@@ -106,7 +106,7 @@ Java_com_example_mylibcommon_NativeCamera_nSetMainSurface(JNIEnv *env, jobject t
 
 extern "C"
 JNIEXPORT void JNICALL
-Java_com_example_mylibcommon_NativeCamera_nSetStreamSurface(JNIEnv *env, jobject thiz,
+Java_com_htha_mylibcommon_NativeCamera_nSetStreamSurface(JNIEnv *env, jobject thiz,
 															jlong pointer, jobject surface) {
 	// TODO: implement nSetStreamSurface()
 	auto *nCamera = reinterpret_cast<CameraDevice *>(pointer);
@@ -116,7 +116,7 @@ Java_com_example_mylibcommon_NativeCamera_nSetStreamSurface(JNIEnv *env, jobject
 
 extern "C"
 JNIEXPORT void JNICALL
-Java_com_example_mylibcommon_NativeCamera_nCloseStream(JNIEnv *env, jobject thiz, jlong pointer) {
+Java_com_htha_mylibcommon_NativeCamera_nCloseStream(JNIEnv *env, jobject thiz, jlong pointer) {
 	// TODO: implement nCloseStream()
 	auto *nCamera = reinterpret_cast<CameraDevice *>(pointer);
 	nCamera->stopStreamWindow();
@@ -124,7 +124,7 @@ Java_com_example_mylibcommon_NativeCamera_nCloseStream(JNIEnv *env, jobject thiz
 
 extern "C"
 JNIEXPORT jlong JNICALL
-Java_com_example_mylibcommon_NativeCamera_getTimeS(JNIEnv *env, jobject thiz, jlong pointer) {
+Java_com_htha_mylibcommon_NativeCamera_getTimeS(JNIEnv *env, jobject thiz, jlong pointer) {
 	// TODO: implement getTimeS()
 
 	auto *nCamera = reinterpret_cast<CameraDevice *>(pointer);

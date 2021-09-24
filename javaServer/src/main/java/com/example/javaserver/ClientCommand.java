@@ -1,4 +1,4 @@
-package com.example.javaserver;
+package com.htha.javaserver;
 
 public enum ClientCommand implements Command {
 

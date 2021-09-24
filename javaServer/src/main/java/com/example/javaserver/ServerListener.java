@@ -1,6 +1,6 @@
-package com.example.javaserver;
+package com.htha.javaserver;
 
-import com.example.javaserver.Server.ConnectionToClient;
+import com.htha.javaserver.Server.ConnectionToClient;
 
 public interface ServerListener {
 	

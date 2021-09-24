@@ -1,4 +1,4 @@
-package com.example.mylibrary2;
+package com.htha.mylibrary2;
 
 import org.junit.Test;
 

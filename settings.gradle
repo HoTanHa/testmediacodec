@@ -1,6 +1,6 @@
-include ':qcar_encoder'
+//include ':qcar_encoder'
 include ':camera-sc600'
-include ':javaServer'
+//include ':javaServer'
 include ':rtmp-client'
 include ':mylibcommon'
 include ':app'

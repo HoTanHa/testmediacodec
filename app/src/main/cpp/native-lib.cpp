@@ -12,7 +12,7 @@
 
 
 extern "C" JNIEXPORT jstring JNICALL
-Java_com_example_testcameramediacodec_MainActivity_stringFromJNI(
+Java_com_htha_testcamsc600_MainActivity_stringFromJNI(
 	JNIEnv *env,
 	jobject /* this */) {
 	std::string hello = "Hello from C++";
@@ -21,7 +21,7 @@ Java_com_example_testcameramediacodec_MainActivity_stringFromJNI(
 
 
 extern "C" JNIEXPORT jbyteArray JNICALL
-Java_com_example_testcameramediacodec_MainActivity_getbByteInfo(JNIEnv *env, jclass clazz) {
+Java_com_htha_testcamsc600_MainActivity_getbByteInfo(JNIEnv *env, jclass clazz) {
 	// TODO: implement getbByteInfo()
 	jbyteArray retVal = env->NewByteArray(1280 * 24);
 //	char* buf = new char[1280*24];
@@ -55,7 +55,7 @@ uint8_t *buffer360[640 * 360 * 2];
 
 extern "C"
 JNIEXPORT void JNICALL
-Java_com_example_testcameramediacodec_MainActivity_drawDataToSurface(JNIEnv *env, jobject thiz,
+Java_com_htha_testcamsc600_MainActivity_drawDataToSurface(JNIEnv *env, jobject thiz,
 																	 jbyteArray dataImage,
 																	 jobject surface) {
 	// TODO: implement drawDataToSurface()
@@ -142,7 +142,7 @@ Java_com_example_testcameramediacodec_MainActivity_drawDataToSurface(JNIEnv *env
 
 extern "C"
 JNIEXPORT void JNICALL
-Java_com_example_testcameramediacodec_MainActivity_setSurfaceFormat(JNIEnv *env, jclass clazz,
+Java_com_htha_testcamsc600_MainActivity_setSurfaceFormat(JNIEnv *env, jclass clazz,
 																	jobject surface) {
 	// TODO: implement setSurfaceFormat()
 
@@ -159,7 +159,7 @@ Java_com_example_testcameramediacodec_MainActivity_setSurfaceFormat(JNIEnv *env,
 
 extern "C"
 JNIEXPORT void JNICALL
-Java_com_example_testcameramediacodec_MainActivity_changeByteArray(JNIEnv *env, jobject thiz,
+Java_com_htha_testcamsc600_MainActivity_changeByteArray(JNIEnv *env, jobject thiz,
 																   jbyteArray array) {
 	// TODO: implement changeByteArray()
 	jbyte *byteArray = env->GetByteArrayElements(array, NULL);
@@ -172,7 +172,7 @@ Java_com_example_testcameramediacodec_MainActivity_changeByteArray(JNIEnv *env, 
 #include <camera/NdkCameraManager.h>
 extern "C"
 JNIEXPORT void JNICALL
-Java_com_example_testcameramediacodec_MainActivity_nCheckCamera(JNIEnv *env, jobject thiz) {
+Java_com_htha_testcamsc600_MainActivity_nCheckCamera(JNIEnv *env, jobject thiz) {
 	// TODO: implement nCheckCamera()
 	ACameraManager *camManager = ACameraManager_create();
 	ACameraIdList *cameraIds = nullptr;

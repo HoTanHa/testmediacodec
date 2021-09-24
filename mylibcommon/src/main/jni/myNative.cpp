@@ -27,7 +27,7 @@ extern "C"
 JNIEXPORT jint
 
 JNICALL
-Java_com_example_mylibcommon_NativeFunction_nResetUsb(JNIEnv *env, jclass clazz, jstring name) {
+Java_com_htha_mylibcommon_NativeFunction_nResetUsb(JNIEnv *env, jclass clazz, jstring name) {
 	// TODO: implement nResetUsb()
 	const char *nativeString = env->GetStringUTFChars(name, 0);
 	int fd = open(nativeString, O_WRONLY);
