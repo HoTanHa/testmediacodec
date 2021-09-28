@@ -16,8 +16,8 @@ public class DeviceInfo {
     private static final String TAG = "DeviceInfo";
     private int serialNumber = 0;
     private static DeviceInfo instance = null;
-    private boolean isStreaming[] = new boolean[4];
-    private boolean isPlugin[] = new boolean[4];
+    private final boolean[] isStreaming = new boolean[4];
+    private final boolean[] isPlugin = new boolean[4];
     private static boolean isSending = false;
 
     private double latitude_t = 0.0f;
@@ -30,6 +30,7 @@ public class DeviceInfo {
     private int keyStatus_t = 0;
     private String ipDevice_t;
     private double adc = 0.0f;
+    private InfoCallback mCallback;
 
     private DeviceInfo() {
 
@@ -49,6 +50,10 @@ public class DeviceInfo {
         isStreaming[camId] = isStream;
     }
 
+    public void setCallBack(InfoCallback callBack) {
+        mCallback = callBack;
+    }
+
     public void setCameraStatus(int camId, boolean isExist) {
         if (camId >= 4) {
             return;
@@ -63,8 +68,8 @@ public class DeviceInfo {
         this.speed_t = speed;
     }
 
-    public void sendInfo(){
-        if (isSending){
+    public void sendInfo() {
+        if (isSending) {
             return;
         }
         isSending = true;
@@ -92,14 +97,21 @@ public class DeviceInfo {
         this.keyStatus_t = keyStatus;
         this.adc = adc;
     }
+
     private void sendHttpInformationDevice() throws IOException {
         if (tempDevice == null || ipDevice_t == null) {
             return;
         }
         countSendInfo++;
         Date time = new Date();
-        int camCnt = 4;
-        int liveStreamCnt = 4;
+        int camCnt = 0;
+        for (int i = 0; i < isPlugin.length; i++) {
+            camCnt += (isPlugin[i] ? (1 << i) : 0);
+        }
+        int liveStreamCnt = 0;
+        for (int i = 0; i < isStreaming.length; i++) {
+            liveStreamCnt += (isStreaming[i] ? (1 << i) : 0);
+        }
         String query1 = "id=" + serialNumber + "&lat=" + String.format(Locale.ROOT, "%.6f", latitude_t) +
                 "&lon=" + String.format(Locale.ROOT, "%.6f", longitude_t) +
                 "&timestamp=" + time.getTime() +
@@ -144,6 +156,12 @@ public class DeviceInfo {
         String body = br.readLine();
         String log = "Send Info Device: code " + serverResponseCode + "..Body: " + body;
         Log.i(TAG, "sendHttpInformationDevice:" + log);
+        if (mCallback != null) {
+            mCallback.onResultSendInfo(log);
+        }
     }
 
+    public interface InfoCallback {
+        void onResultSendInfo(String log);
+    }
 }

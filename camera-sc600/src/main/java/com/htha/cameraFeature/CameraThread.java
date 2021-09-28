@@ -5,6 +5,7 @@ import android.os.Environment;
 import android.util.Log;
 
 import com.htha.camera_sc600.CameraSC600;
+import com.htha.device.DeviceInfo;
 import com.htha.mylibcommon.NativeCamera;
 
 import java.io.File;
@@ -77,6 +78,7 @@ public final class CameraThread {
 
     public void setInfoLocation(double lat, double lon, double speed) {
         NativeCamera.setInfoLocation(lat, lon, speed);
+        DeviceInfo.getInstance().setInfoLocation(serialNumber, lat, lon, speed);
     }
 
     public void setDriverInfo(String sBsXe, String sInfo) {
@@ -114,6 +116,8 @@ public final class CameraThread {
         this.pathStorage = path;
         timeSetStorage = System.currentTimeMillis() / 1000;
         isStorageStatusChange = true;
+
+        deleteImage();
     }
 
     public void startStreamRtmp(int camId, String url) {
@@ -438,12 +442,13 @@ public final class CameraThread {
         @Override
         public void onStreamSuccess(int camId, String urlStream) {
             mCallback.onStreamSuccess(camId, urlStream);
+            DeviceInfo.getInstance().setStreamCamera(camId, true);
         }
 
         @Override
         public void onStreamError(int camId) {
             mCallback.onStreamOff(camId);
-
+            DeviceInfo.getInstance().setStreamCamera(camId, false);
         }
 
         @Override

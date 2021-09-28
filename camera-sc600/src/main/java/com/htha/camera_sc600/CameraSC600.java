@@ -33,6 +33,7 @@ public final class CameraSC600 {
 
         isRunning = true;
         QCarLog.setTagLogLevel(Log.INFO);
+        QCarLog.setModuleLogLevel(QCarLog.LOG_MODULE_APP);
 
         CSI_NUMS = new int[USE_BUS_CSI];
         if (USE_BUS_CSI == 1) {
@@ -73,23 +74,31 @@ public final class CameraSC600 {
             QCarCamera qCarCamera = qCarCameraMap.get(value);
 
             int count = 0;
+            int numCam = 0;
+            int type = 0;
             while (count < 10) {
-                Log.d(TAG, "CameraSC600:  csiNum = " + 0 + " inputNum = " + 4 + " inputType = " + 4);
                 int ret = 0;
                 if (value == SC600Params.CSI_NUM.CAMERA_CSI0) {
                     if (USE_BUS_CSI == 1) {
-                        ret = qCarCamera.cameraOpen(4, SC600Params.InputType.CSI0_CH0CH1CH2CH3_720P);
+                        numCam = 4;
+                        type = SC600Params.InputType.CSI0_CH0CH1CH2CH3_720P;
                     }
                     else {
-                        ret = qCarCamera.cameraOpen(2, SC600Params.InputType.CSI0_CH0CH1CH2CH3_720P);
+                        numCam = 4;
+                        type = SC600Params.InputType.CSI0_CH0CH1CH2CH3_720P;
                     }
                 }
                 else if (value == SC600Params.CSI_NUM.CAMERA_CSI2) {
-                    ret = qCarCamera.cameraOpen(2, SC600Params.InputType.CSI0_CH0CH1CH2CH3_720P);
-//                    ret = qCarCamera.cameraOpen(2, SC600Params.InputType.CSI2_CH0CH1CH2CH3_720P);
+                    numCam = 2;
+                    type = SC600Params.InputType.CSI0_CH0CH1CH2CH3_720P;
                 }
+                Log.d(TAG, "CameraSC600:  csiNum = " + value + " inputNum = " +
+                        numCam + " inputType = " + type);
+
+                ret = qCarCamera.cameraOpen(numCam, type);
+
                 if (ret == 0) {
-                    Log.d(TAG, "CameraSC600:  Open csi " + 0 + " Success");
+                    Log.d(TAG, "CameraSC600:  Open csi " + value + " Success");
                     break;
                 }
                 else {
@@ -100,7 +109,7 @@ public final class CameraSC600 {
                     catch (InterruptedException e) {
                         e.printStackTrace();
                     }
-                    Log.d(TAG, "CameraSC600:  Open Failed, cameraOpen csi " + 0 + " return = " + ret);
+                    Log.d(TAG, "CameraSC600:  Open Failed, cameraOpen csi " + value + " return = " + ret);
                 }
                 qCarCamera.registerOnErrorCB(errorHandler);
             }

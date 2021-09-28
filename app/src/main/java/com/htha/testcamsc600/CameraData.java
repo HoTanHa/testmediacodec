@@ -13,13 +13,12 @@ import android.media.Image;
 import android.media.ImageReader;
 import android.os.Handler;
 import android.os.HandlerThread;
-import android.support.v4.app.ActivityCompat;
 import android.util.Log;
 import android.util.Range;
 import android.view.Surface;
 
-//import androidx.annotation.NonNull;
-//import androidx.core.app.ActivityCompat;
+import androidx.annotation.NonNull;
+import androidx.core.app.ActivityCompat;
 
 import java.util.ArrayList;
 
@@ -35,7 +34,8 @@ public class CameraData {
     private HandlerThread backgroundThread;
     private Handler backgroundHandler;
     private CameraDataCallback callback;
-    public CameraData( Context ctx,  final String sCamId, CameraDataCallback mCallback) {
+
+    public CameraData(Context ctx, final String sCamId, CameraDataCallback mCallback) {
         this.context = ctx;
         this.sCameraId = sCamId;
         this.callback = mCallback;
@@ -44,7 +44,7 @@ public class CameraData {
     private final CameraDevice.StateCallback cameraDeviceCallback = new CameraDevice.StateCallback() {
 
         @Override
-        public void onOpened( CameraDevice camera) {
+        public void onOpened(CameraDevice camera) {
             Log.d(TAG, "onOpened: Camera device on opened:.." + camera.getId());
             CameraData.this.cameraDevice = camera;
             createCameraCaptureSession();
@@ -52,7 +52,7 @@ public class CameraData {
         }
 
         @Override
-        public void onDisconnected( CameraDevice camera) {
+        public void onDisconnected(CameraDevice camera) {
             Log.d(TAG, "onDisconnected: Camera device on Disconnected:.." + camera.getId());
             camera.close();
             CameraData.this.cameraDevice = null;
@@ -60,7 +60,7 @@ public class CameraData {
         }
 
         @Override
-        public void onError( CameraDevice camera, int error) {
+        public void onError(CameraDevice camera, int error) {
             camera.close();
             CameraData.this.cameraDevice = null;
             callback.cameraError(sCameraId);
@@ -71,7 +71,7 @@ public class CameraData {
         @Override
         public void onImageAvailable(ImageReader reader) {
             Image image = reader.acquireLatestImage();
-            if (image!=null) {
+            if (image != null) {
                 callback.onRawImage(sCameraId, image);
                 image.close();
             }

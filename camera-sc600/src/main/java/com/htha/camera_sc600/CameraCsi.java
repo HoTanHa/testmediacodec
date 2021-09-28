@@ -23,9 +23,10 @@ public class CameraCsi {
     private CamInfo mCamInfo;
     private int inputChannel = 0;
     private int csiNum = 0;
-    private int inputType = 0;
     private volatile long frameID = 0;
     private Date date = new Date();
+
+    QCarCamera.FrameInfo frameInfo;
 
     public CameraCsi(int camId, CameraCsiCallback callback) {
         CameraSC600 cameraSC600 = CameraSC600.getInstance();
@@ -39,13 +40,6 @@ public class CameraCsi {
         csiNum = mCamInfo.getCsiNum();
         inputChannel = mCamInfo.getInputChannel();
 
-        if (csiNum == SC600Params.CSI_NUM.CAMERA_CSI0) {
-            inputType = SC600Params.InputType.CSI0_CH0CH1CH2CH3_720P;
-        }
-        else {
-            inputType = SC600Params.InputType.CSI2_CH0CH1CH2CH3_720P;
-        }
-
         qCarCamera = cameraSC600.getQCarCamera(csiNum);
         if (qCarCamera == null) {
             return;
@@ -57,6 +51,8 @@ public class CameraCsi {
                 Log.d(TAG, "CameraCsi: Set VideoColorFormat Fail..." + mCamInfo.toString());
             }
         }
+
+        qCarCamera.setFpsLogDebug(inputChannel, 0);
 
         result = qCarCamera.setVideoSize(inputChannel, WIDTH, HEIGHT);
         if (result != 0) {
@@ -80,42 +76,37 @@ public class CameraCsi {
             return;
         }
         byteBufferData = ByteBuffer.wrap(byteArray);
-        new Thread(new Runnable() {
-            @Override
-            public void run() {
+        isRunning = true;
+        mCallback.onCameraOpen();
+        new Thread(() -> {
+            while (isRunning) {
+                try {
+                    Thread.sleep(20);
+                }
+                catch (InterruptedException ignored) {
+                }
 
-                    isRunning = true;
-                    mCallback.onCameraOpen();
-                    boolean bCheckFrame;
-                    while (isRunning) {
-                        try {
-                            Thread.sleep(20);
-                        }
-                        catch (InterruptedException ignored) {
-                        }
-
-                        bCheckFrame = getData();
-                        if (bCheckFrame && (frameID % 1000 == 1)) {
+                frameInfo = qCarCamera.getVideoFrameInfo(inputChannel, byteBufferData);
+                if ((frameInfo != null)) {
+                    if ((frameID < frameInfo.frameID)) {
+                        frameID = frameInfo.frameID;
+                        mCallback.onRawData(byteBufferData);
+                        if ((frameID % 1000 == 1)) {
                             if (LOG_DEBUG) {
                                 date.setTime(System.currentTimeMillis());
                                 Log.d(TAG, "CameraCsi:.." + frameID + ".." + mCamInfo.toString() + "..." + date);
                             }
                         }
                     }
-                    qCarCamera.stopVideoStream(inputChannel);
-                }}
-        ).start();
+                    else {
+                        frameID = frameInfo.frameID;
+                    }
+                }
+            }
+            qCarCamera.stopVideoStream(inputChannel);
+        }).start();
     }
 
-    private boolean getData() {
-        QCarCamera.FrameInfo frameInfo = qCarCamera.getVideoFrameInfo(inputChannel, byteBufferData);
-        if (frameInfo != null && frameID < frameInfo.frameID) {
-            frameID = frameInfo.frameID;
-            mCallback.onRawData(byteBufferData);
-            return true;
-        }
-        return false;
-    }
 
     public void close() {
         isRunning = false;

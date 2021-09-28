@@ -10,7 +10,7 @@ import android.os.HandlerThread;
 import android.util.Log;
 import android.view.Surface;
 
-import android.support.annotation.NonNull;
+import androidx.annotation.NonNull;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 

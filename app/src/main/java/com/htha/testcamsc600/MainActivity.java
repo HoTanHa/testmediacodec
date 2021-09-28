@@ -3,12 +3,13 @@ package com.htha.testcamsc600;
 
 import android.os.Build;
 import android.os.Bundle;
-import android.support.v7.app.AppCompatActivity;
 import android.util.Log;
 import android.view.Surface;
 import android.view.View;
 import android.widget.Button;
 import android.widget.TextView;
+
+import androidx.appcompat.app.AppCompatActivity;
 
 import com.htha.cameraFeature.CameraThread;
 import com.htha.camera_sc600.CameraSC600;
@@ -136,7 +137,6 @@ public class MainActivity extends AppCompatActivity {
 
 
         CameraSC600 cameraSC600 = CameraSC600.getInstance();
-
 
 
 //        TextView tv = (TextView) findViewById(R.id.sample_text);
@@ -291,6 +291,14 @@ public class MainActivity extends AppCompatActivity {
                     Log.i(TAG, "onClick: on2 stream");
                     cameraThread.startStreamRtmp(1, LINK_STREAM2);
                     break;
+                case R.id.button_on3:
+                    Log.i(TAG, "onClick: on3 stream");
+                    cameraThread.startStreamRtmp(3, LINK_STREAM3);
+                    break;
+                case R.id.button_on4:
+                    Log.i(TAG, "onClick: on4 stream");
+                    cameraThread.startStreamRtmp(4, LINK_STREAM4);
+                    break;
                 case R.id.button_off1:
                     Log.i(TAG, "onClick: off1 stream");
                     cameraThread.stopStream(0);
@@ -299,21 +307,13 @@ public class MainActivity extends AppCompatActivity {
                     Log.i(TAG, "onClick: off2 stream");
                     cameraThread.stopStream(1);
                     break;
-                case R.id.button_on3:
-                    Log.i(TAG, "onClick: on3 stream");
-                    cameraThread.startStreamRtmp(3, LINK_STREAM4);
-                    break;
-                case R.id.button_on4:
-                    Log.i(TAG, "onClick: on4 stream");
-                    cameraThread.startStreamRtmp(4, LINK_STREAM4);
-                    break;
                 case R.id.button_off3:
                     Log.i(TAG, "onClick: off3 stream");
-                    cameraThread.stopStream(0);
+                    cameraThread.stopStream(2);
                     break;
                 case R.id.button_off4:
                     Log.i(TAG, "onClick: off4 stream");
-                    cameraThread.stopStream(1);
+                    cameraThread.stopStream(3);
                     break;
                 case R.id.button_save:
                     Log.i(TAG, "onClick: set storage on on");
@@ -381,8 +381,6 @@ public class MainActivity extends AppCompatActivity {
     public void checkPermission(String permission, int requestCode) {
 
     }
-
-
 
 
     /**

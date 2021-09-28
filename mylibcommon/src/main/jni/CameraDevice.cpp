@@ -62,6 +62,7 @@ void CameraDevice::create_info_in_image(void *vptr_args) {
 	int idx_arr = 0;
 	int length = 0;
 	int count = 0;
+	int camIdTitle = mCamera->camId;
 
 	pthread_setname_np(pthread_self(), "setInfoThread");
 	while (mCamera->isRunning) {
@@ -78,7 +79,7 @@ void CameraDevice::create_info_in_image(void *vptr_args) {
 			memset(mCamera->strInfo, 0, 110);
 			snprintf(mCamera->strInfo, 100,
 					 "Cam%d %04d/%02d/%02d %02d:%02d:%02d %s %9.6lf %10.6lf %5.1lfKm/h %s",
-					 mCamera->camId, tm.tm_year + 1900, tm.tm_mon + 1, tm.tm_mday, tm.tm_hour,
+					 camIdTitle , tm.tm_year + 1900, tm.tm_mon + 1, tm.tm_mday, tm.tm_hour,
 					 tm.tm_min, tm.tm_sec, CameraDevice::sBsXe, CameraDevice::sLatitude,
 					 CameraDevice::sLongitude, CameraDevice::sSpeeds, CameraDevice::sDriverInfo);
 			length = strlen(mCamera->strInfo);

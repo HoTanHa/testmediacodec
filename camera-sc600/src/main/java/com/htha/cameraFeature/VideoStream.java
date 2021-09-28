@@ -3,7 +3,7 @@ package com.htha.cameraFeature;
 import android.media.MediaCodec;
 import android.media.MediaFormat;
 import android.util.Log;
-import android.support.annotation.NonNull;
+import androidx.annotation.NonNull;
 import com.htha.rtmpClient.RTMPMuxer;
 import com.htha.rtpH264.H264Packetizer;
 
