@@ -62,7 +62,7 @@ void CameraDevice::create_info_in_image(void *vptr_args) {
 	int idx_arr = 0;
 	int length = 0;
 	int count = 0;
-	int camIdTitle = mCamera->camId;
+	int camIdTitle = mCamera->camId + 1;
 
 	pthread_setname_np(pthread_self(), "setInfoThread");
 	while (mCamera->isRunning) {
@@ -187,7 +187,10 @@ void CameraDevice::setCamId(int camIdSet) {
 
 void CameraDevice::setMainWindow(ANativeWindow *mainWindow) {
 	this->mMainWindow = mainWindow;
-	ANativeWindow_setBuffersGeometry(mMainWindow, WIDTH_IMG, HEIGHT_IMG, FORMAT_SURFACE);
+	int res = ANativeWindow_setBuffersGeometry(mMainWindow, WIDTH_IMG, HEIGHT_IMG, FORMAT_SURFACE);
+	if (res){
+		loge("Set native window error...%d....%ld", camId, time(NULL));
+	}
 	info_thread = std::thread(create_info_in_image, (void *) this);
 }
 

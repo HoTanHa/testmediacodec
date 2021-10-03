@@ -30,16 +30,18 @@ import fi.iki.elonen.NanoHTTPD;
 public final class HttpServer extends NanoHTTPD {
     private static final String TAG = "HttpServer";
     private static final int PORT = 8080;
-    private static final int NUM_CAM = 2;
+    private static final int NUM_CAM = 4;
     private String pathStorage = null;
     private static final int CAM_ID_1 = 0;
     private static final int CAM_ID_2 = 1;
-    private final ArrayList<ArrayList<Long>> listHourFolder = new ArrayList<>();
-    private final ArrayList<ArrayList<Long>> listTimeVideo = new ArrayList<>();
-    private final Map<String, String> mapToken = new HashMap<>();
-    private final ArrayList<ImageData> listImage = new ArrayList<>();
-    private final String folderHttp = "/storage/emulated/0/web";
-//    private final String folderHttp = "/system/etc/web_hop_chuan";
+    private static final int CAM_ID_3 = 2;
+    private static final int CAM_ID_4 = 3;
+    private ArrayList<ArrayList<Long>> listHourFolder = new ArrayList<>();
+    private ArrayList<ArrayList<Long>> listTimeVideo = new ArrayList<>();
+    private Map<String, String> mapToken = new HashMap<>();
+    private ArrayList<ImageData> listImage = new ArrayList<>();
+    private static final String folderHttp = "/storage/emulated/0/web";
+//    private static final String folderHttp = "/system/etc/web_hop_chuan";
 
     private long sdCardSize = 0;
     private long sdCardFreeSpace = 0;
@@ -47,13 +49,23 @@ public final class HttpServer extends NanoHTTPD {
     private int serialNumber = 0;
     private Context mContext;
 
-    public HttpServer(Context context, String pathSdCard, int sn) {
+    private int TIMEOUT_SERVER = 5 * 60 * 1000;
+    private ServerCallback mCallback;
+    private static volatile boolean isRunning = false;
+    private Thread serverThread;
+    private long timeCheckTimeout = 0;
+    private long timeLastRequestMs = 0;
+
+    public HttpServer(Context context, String pathSdCard, int sn, int timeoutS, ServerCallback callback) {
         super(PORT);
         this.mContext = context;
         this.serialNumber = sn;
+        this.TIMEOUT_SERVER = timeoutS * 1000;
+        this.mCallback = callback;
         Log.d(TAG, "HttpServer: Server starting");
         try {
             start(NanoHTTPD.SOCKET_READ_TIMEOUT, true);
+            isRunning = true;
         }
         catch (IOException e) {
             e.printStackTrace();
@@ -71,23 +83,57 @@ public final class HttpServer extends NanoHTTPD {
         else {
             Log.d(TAG, "HttpServer: Path sdCard is null..!");
         }
-        new Thread(new Runnable() {
-            @Override
-            public void run() {
-                for (int i = 0; i < 2; i++) {
-                    ArrayList<Long> item = new ArrayList<Long>();
-                    listHourFolder.add(item);
-                }
-                for (int i = 0; i < 2; i++) {
-                    ArrayList<Long> item = new ArrayList<Long>();
-                    listTimeVideo.add(item);
-                }
-                readListVideoStorage(CAM_ID_1);
-                readListVideoStorage(CAM_ID_2);
-                readListImage();
-                getInfoStorage();
+
+        timeCheckTimeout = System.currentTimeMillis();
+        timeLastRequestMs = timeCheckTimeout;
+        serverThread = new Thread(() -> {
+            for (int i = 0; i < NUM_CAM; i++) {
+                ArrayList<Long> item = new ArrayList<Long>();
+                listHourFolder.add(item);
             }
-        }).start();
+            for (int i = 0; i < NUM_CAM; i++) {
+                ArrayList<Long> item = new ArrayList<Long>();
+                listTimeVideo.add(item);
+            }
+            for (int i = 0; i < NUM_CAM; i++) {
+                readListVideoStorage(i);
+            }
+            readListImage();
+            getInfoStorage();
+            while (isRunning) {
+                timeCheckTimeout = System.currentTimeMillis();
+                if ((timeCheckTimeout - timeLastRequestMs) > TIMEOUT_SERVER) {
+                    Date lastRequest = new Date(timeLastRequestMs);
+                    Log.d(TAG, "HttpServer: timeout request.." + TIMEOUT_SERVER + ".." + lastRequest.toString());
+                    new Thread(() -> mCallback.onTimeout()).start();
+                    isRunning = false;
+                    break;
+                }
+
+                try {
+                    Thread.sleep(10000);
+                }
+                catch (InterruptedException e) {
+                    e.printStackTrace();
+                }
+            }
+        });
+        serverThread.start();
+    }
+
+    @Override
+    public void stop() {
+        super.stop();
+        isRunning = false;
+        if (serverThread != null && serverThread.isAlive()) {
+            try {
+                serverThread.join();
+            }
+            catch (InterruptedException e) {
+                e.printStackTrace();
+            }
+            serverThread = null;
+        }
     }
 
     @Override
@@ -103,6 +149,7 @@ public final class HttpServer extends NanoHTTPD {
         if (!method.equals(Method.GET)) {
             return responseNotFound();
         }
+        timeLastRequestMs = System.currentTimeMillis();
 
         if (uri.equals("/")) {
 //            Response response = newFixedLengthResponse(Response.Status.OK, NanoHTTPD.MIME_PLAINTEXT, "ADSUN CAMERA BOX");
@@ -167,7 +214,7 @@ public final class HttpServer extends NanoHTTPD {
                 catch (NumberFormatException exception) {
                     return responseParamError();
                 }
-                Log.d(TAG, "serve: Query video..." + cam + "....." + time);
+//                Log.d(TAG, "serve: Query video..." + cam + "....." + time);
                 return responseVideoFile(cam, time);
             }
             return responseParamError();
@@ -194,7 +241,7 @@ public final class HttpServer extends NanoHTTPD {
                     cam = Integer.parseInt(param.get("camera").get(0));
                     sDate = param.get("date").get(0);
                     date = new SimpleDateFormat("yyyyMMdd", Locale.ROOT).parse(sDate);
-                    Log.d(TAG, "serve: " + date);
+//                    Log.d(TAG, "serve: " + date);
                 }
                 catch (NumberFormatException | ParseException exception) {
                     return responseParamError();
@@ -203,8 +250,23 @@ public final class HttpServer extends NanoHTTPD {
             }
             return responseParamError();
         }
-        else if (uri.equals("/favicon.ico")) {
-            String pathFile = folderHttp + "/favicon.ico";
+//        else if (uri.equals("/favicon.ico")) {
+//            String pathFile = folderHttp + "/favicon.ico";
+//            FileInputStream fis = null;
+//            File file = new File(pathFile);
+//            try {
+//                fis = new FileInputStream(file);
+//            }
+//            catch (FileNotFoundException e) {
+//                e.printStackTrace();
+//                return responseNotFound();
+//            }
+//            Response response = newFixedLengthResponse(Response.Status.OK, "image/x-icon", fis, file.length());
+//            response.closeConnection(true);
+//            return response;
+//        }
+        else if (uri.equals("/favicon_bm.ico")) {
+            String pathFile = folderHttp + "/favicon_bm.ico";
             FileInputStream fis = null;
             File file = new File(pathFile);
             try {
@@ -262,7 +324,8 @@ public final class HttpServer extends NanoHTTPD {
             Response response = newFixedLengthResponse(Response.Status.OK, "text/javascript", fis, file.length());
             response.closeConnection(true);
             return response;
-        }else if (uri.equals("/vis-timeline-graph2d.min.js")) {
+        }
+        else if (uri.equals("/vis-timeline-graph2d.min.js")) {
             String pathFile = folderHttp + "/vis-timeline-graph2d.min.js";
             FileInputStream fis = null;
             File file = new File(pathFile);
@@ -276,7 +339,8 @@ public final class HttpServer extends NanoHTTPD {
             Response response = newFixedLengthResponse(Response.Status.OK, "text/javascript", fis, file.length());
             response.closeConnection(true);
             return response;
-        }else if (uri.equals("/vis-timeline-graph2d.min.css")) {
+        }
+        else if (uri.equals("/vis-timeline-graph2d.min.css")) {
             String pathFile = folderHttp + "/vis-timeline-graph2d.min.css";
             FileInputStream fis = null;
             File file = new File(pathFile);
@@ -291,7 +355,6 @@ public final class HttpServer extends NanoHTTPD {
             response.closeConnection(true);
             return response;
         }
-
         else if (uri.startsWith("/root")) {
             return responseRootDirectory(uri);
         }
@@ -325,7 +388,7 @@ public final class HttpServer extends NanoHTTPD {
             catch (ParseException e) {
                 e.printStackTrace();
             }
-            Log.d(TAG, "serve: Query video..." + cam + "....." + time);
+//            Log.d(TAG, "serve: Query video..." + cam + "....." + time);
             return responseListVideoInHour(cam, time);
         }
         else if (uri.equals("/api/info")) {
@@ -658,10 +721,6 @@ public final class HttpServer extends NanoHTTPD {
         return newFixedLengthResponse(Response.Status.INTERNAL_ERROR, NanoHTTPD.MIME_PLAINTEXT, "INTERNAL ERROR: " + s);
     }
 
-    private Response getNotFoundResponse() {
-        return NanoHTTPD.newFixedLengthResponse(Response.Status.NOT_FOUND, NanoHTTPD.MIME_PLAINTEXT, "Error 404, file not found.");
-    }
-
     private Response responseRootDirectory(String uri) {
         String path1 = uri.substring(5);
         String path = path1.replaceAll("//", "/");
@@ -822,11 +881,11 @@ public final class HttpServer extends NanoHTTPD {
             key2[i] = (byte) ((i % 3 == 0) ? (x * 2 + x % 8 + 1) : ((i % 3 == 1) ? (x + 25 + i % 10 - i % 4) : ((x < 0x35) ? (x + 33 - i % 10) : (x + 54 + i % 10))));
         }
         String sKey2 = new String(key2, 0, key.length);
-        Log.d(TAG, "encodeKeyToTokenKey: key2: " + sKey2);
+//        Log.d(TAG, "encodeKeyToTokenKey: key2: " + sKey2);
         String sKey3 = "ADSUN-" + sKey2 + "-" + sKey.substring(15);
-        Log.d(TAG, "encodeKeyToTokenKey: key3: " + sKey3);
+//        Log.d(TAG, "encodeKeyToTokenKey: key3: " + sKey3);
         String encodedBytes = Base64.encodeToString(sKey3.getBytes(), Base64.NO_WRAP);
-        Log.d(TAG, "encodeKeyToTokenKey: key4: " + encodedBytes);
+//        Log.d(TAG, "encodeKeyToTokenKey: key4: " + encodedBytes);
         return encodedBytes;
     }
 
@@ -1092,5 +1151,9 @@ public final class HttpServer extends NanoHTTPD {
             }
             return jsonObject;
         }
+    }
+
+    public interface ServerCallback {
+        void onTimeout();
     }
 }

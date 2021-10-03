@@ -6,6 +6,7 @@ import android.os.Bundle;
 import android.util.Log;
 import android.view.Surface;
 import android.view.View;
+import android.view.WindowManager;
 import android.widget.Button;
 import android.widget.TextView;
 
@@ -13,13 +14,16 @@ import androidx.appcompat.app.AppCompatActivity;
 
 import com.htha.cameraFeature.CameraThread;
 import com.htha.camera_sc600.CameraSC600;
+import com.htha.device.DeviceInfo;
 import com.htha.httpServer.HttpServer;
 import com.htha.mylibcommon.NativeCamera;
+import com.htha.playback.PlaybackStream;
 
 import org.java_websocket.client.WebSocketClient;
 import org.java_websocket.framing.CloseFrame;
 import org.java_websocket.handshake.ServerHandshake;
 
+import java.io.File;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.Calendar;
@@ -55,8 +59,6 @@ public class MainActivity extends AppCompatActivity {
     private Button btnSave;
     private Button btnNoSD;
 
-    private static String PathSDCARD = "/mnt/media_rw/8013-10EF";
-//    private static String PathSDCARD = "/mnt/media_rw/2431-0AFA";
 
     private Button btnOnPlb;
     private Button btnStopPlb;
@@ -66,6 +68,7 @@ public class MainActivity extends AppCompatActivity {
     private Button btnOffHttp;
 
     private HttpServer httpServer;
+    private PlaybackStream playbackStream;
     private static final int serialNumber = 999959999;
 
     private static final int CAMERA_PERMISSION_CODE = 1;//100;
@@ -86,6 +89,7 @@ public class MainActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
+        getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
         // Example of a call to a native method
         btnStreamOn1 = (Button) this.findViewById(R.id.button_on1);
         btnStreamOn1.setOnClickListener(mOnClickListener);
@@ -136,14 +140,16 @@ public class MainActivity extends AppCompatActivity {
         btnOffHttp.setOnClickListener(mOnClickListener);
 
 
-        CameraSC600 cameraSC600 = CameraSC600.getInstance();
-
-
 //        TextView tv = (TextView) findViewById(R.id.sample_text);
 //        tv.setText(stringFromJNI());
         threadTest.start();
 
-        Timer mTimer = new Timer();
+        DeviceInfo.getInstance().setCallBack(new DeviceInfo.InfoCallback() {
+            @Override
+            public void onResultSendInfo(String log) {
+                Log.d(TAG, "onResultSendInfo: " + log);
+            }
+        });
         mTimer.schedule(new TimerTask() {
             @Override
             public void run() {
@@ -154,10 +160,21 @@ public class MainActivity extends AppCompatActivity {
                     speed = date.getSeconds() * 1.1441f;
                     cameraThread.setInfoLocation(latitude, longitude, speed);
                 }
+                count++;
+                if (count % 20 == 0) {
+                    DeviceInfo.getInstance().setInfoDeviceStatus(90.0f, "70", "12", "192.168.1.7", 1, 12.2f);
+                    DeviceInfo.getInstance().sendInfo();
+                }
             }
         }, 1000, 1000);
         NativeCamera.setDriverInfo("BS: ", "LX: N/a");
     }
+
+
+    int count = 0;
+
+    Timer mTimer = new Timer();
+    DeviceInfo deviceInfo;
 
     CameraThread cameraThread;
     CameraThread.ICameraThreadCallback cameraThreadCallback = new CameraThread.ICameraThreadCallback() {
@@ -293,11 +310,11 @@ public class MainActivity extends AppCompatActivity {
                     break;
                 case R.id.button_on3:
                     Log.i(TAG, "onClick: on3 stream");
-                    cameraThread.startStreamRtmp(3, LINK_STREAM3);
+                    cameraThread.startStreamRtmp(2, LINK_STREAM3);
                     break;
                 case R.id.button_on4:
                     Log.i(TAG, "onClick: on4 stream");
-                    cameraThread.startStreamRtmp(4, LINK_STREAM4);
+                    cameraThread.startStreamRtmp(3, LINK_STREAM4);
                     break;
                 case R.id.button_off1:
                     Log.i(TAG, "onClick: off1 stream");
@@ -317,16 +334,45 @@ public class MainActivity extends AppCompatActivity {
                     break;
                 case R.id.button_save:
                     Log.i(TAG, "onClick: set storage on on");
-                    cameraThread.setStorageStatus(true, PathSDCARD);
+                    String path = getPathSDCARD();
+                    cameraThread.setStorageStatus(true, path);
                     break;
                 case R.id.button_nosd:
                     Log.i(TAG, "onClick: set storage off off");
                     cameraThread.setStorageStatus(false, null);
                     break;
                 case R.id.button_OnPlb:
+                    if (playbackStream==null) {
+                        String PathSDCARD = getPathSDCARD();
+                        playbackStream = new PlaybackStream(getApplicationContext(), PathSDCARD, new PlaybackStream.IPlaybackCallback() {
+                            @Override
+                            public void onStreamSuccess(int camId, String url) {
+
+                            }
+
+                            @Override
+                            public void onStopPlayback(int camId) {
+
+                            }
+
+                            @Override
+                            public void onErrorPlayback(int camId) {
+
+                            }
+
+                            @Override
+                            public void onLog(String log) {
+
+                            }
+                        });
+                        playbackStream.start("rtmp://125.212.211.209:1935/live/testplaybackhtha", 1, 1632359200);
+                    }
                     break;
                 case R.id.button_StopPlb:
-
+                        if (playbackStream!=null){
+                            playbackStream.stop();
+                            playbackStream=null;
+                        }
                     break;
                 case R.id.button_OnRTP1:
 
@@ -336,7 +382,14 @@ public class MainActivity extends AppCompatActivity {
                     break;
                 case R.id.button_OnHttp:
                     if (httpServer == null) {
-                        httpServer = new HttpServer(getApplicationContext(), PathSDCARD, serialNumber);
+                        String PathSDCARD = getPathSDCARD();
+                        httpServer = new HttpServer(getApplicationContext(), PathSDCARD, serialNumber, 3000,
+                                new HttpServer.ServerCallback() {
+                                    @Override
+                                    public void onTimeout() {
+                                        
+                                    }
+                                });
                     }
                     break;
                 case R.id.button_OffHttp:
@@ -353,6 +406,18 @@ public class MainActivity extends AppCompatActivity {
         if (webSocketClient != null && webSocketClient.isOpen()) {
             webSocketClient.send(msg);
         }
+    }
+
+    private String getPathSDCARD(){
+        File mediaRW = new File("/mnt/media_rw");
+        if (mediaRW.exists()){
+            for (File item:mediaRW.listFiles()                 ) {
+                if (item.getName().length()==9){
+                    return item.getPath();
+                }
+            }
+        }
+        return null;
     }
 
 

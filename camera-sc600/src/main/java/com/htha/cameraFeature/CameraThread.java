@@ -91,7 +91,7 @@ public final class CameraThread {
     }
 
     public void setStorageStatus(boolean status, String path) {
-        if (status) {
+        if (status && path!=null) {
             File fSdcard = new File(path);
             if (!fSdcard.exists()) {
                 Log.d(TAG, "setStorageStatus: Path Storage does not exit..!!!!!");
@@ -141,7 +141,7 @@ public final class CameraThread {
     private void setupSendImageStorage(String path) {
         File file = new File(path);
         String name = path.substring(path.lastIndexOf('/') + 1);
-        boolean isNameImageSave = name.startsWith("img");
+        boolean isNameImageSave = name.startsWith("img_");
         boolean isImageJpg = name.substring(name.lastIndexOf('.')).equals(".jpg");
         if (file.exists() && isImageJpg && isNameImageSave) {
             isSendImageStorage = true;
@@ -205,7 +205,7 @@ public final class CameraThread {
         long timeCompare_old = timeCompare;
         for (File item : listOfFiles) {
             String name = item.getName();
-            boolean isNameImageSave = name.startsWith("img");
+            boolean isNameImageSave = name.startsWith("img_");
             boolean isImageJpg = name.substring(name.lastIndexOf('.')).equals(".jpg");
             if (isNameImageSave && isImageJpg) {
                 countImageSdCard++;
@@ -218,7 +218,6 @@ public final class CameraThread {
             }
         }
         if (timeCompare < timeCompare_old) {
-//            setupSendImageStorage(imageToSend);
             return imageToSend;
         }
         return null;
@@ -242,7 +241,7 @@ public final class CameraThread {
         long timeCompare_old = timeCompare;
         for (File item : listOfFiles) {
             String name = item.getName();
-            boolean isNameImageSave = name.startsWith("img");
+            boolean isNameImageSave = name.startsWith("img_");
             boolean isImageJpg = name.substring(name.lastIndexOf('.')).equals(".jpg");
             if (isNameImageSave && isImageJpg) {
                 countImageExternal++;
@@ -326,7 +325,7 @@ public final class CameraThread {
             long timeCheckRunning = time;
             long timeCheckCamExist = time;
             long timeImageSave = time;
-
+            long timeCreateImage = time + 30;
             for (CameraEncode cameraEncode : cameraEncodes) {
                 cameraEncode.setCameraExist(true);
             }
@@ -338,8 +337,18 @@ public final class CameraThread {
                     Log.d(TAG, "run: CameraThread is running ...." + time);
                 }
                 if (time >= timeCheckCamExist) {
-                    timeCheckCamExist = time + 2;
-                    checkCameraExist();
+                    timeCheckCamExist = time + 1;
+                    for (int i = 0; i < cameraEncodes.size(); i++) {
+                        if (CameraSC600.getInstance().isCamInsert(i) != cameraEncodes.get(i).isCameraExist()) {
+                            if (CameraSC600.getInstance().isCamInsert(i)) {
+                                mCallback.onCameraConnect(i);
+                            }
+                            else {
+                                mCallback.onCameraDisconnect(i);
+                            }
+                        }
+                        cameraEncodes.get(i).setCameraExist(CameraSC600.getInstance().isCamInsert(i));
+                    }
                 }
 
                 if (isStorageStatusChange) {
@@ -350,6 +359,17 @@ public final class CameraThread {
                     else if (!storageStatus) {
                         isStorageStatusChange = false;
                         CameraEncode.setPathStorage(false, null);
+                    }
+                }
+
+                if (time >= timeCreateImage) {
+                    timeCreateImage = time + 1;
+                    for (int i = 0; i < cameraEncodes.size(); i++) {
+                        if (time > cameraEncodes.get(i).getTimeNextImage()) {
+                            if (cameraEncodes.get(i).requestGetImage()) {
+                                break;
+                            }
+                        }
                     }
                 }
 
@@ -365,7 +385,7 @@ public final class CameraThread {
                 }
             }
         }
-    });
+    }, "cameraThread");
 
     private void checkCameraExist() {
 
@@ -385,23 +405,25 @@ public final class CameraThread {
                 File file1 = new File(pathTempImage);
                 String nameFile2 = "imgSent" + file1.getName().substring(3);
                 File file2 = new File(file1.getParentFile(), nameFile2);
-                boolean res = file1.renameTo(file2);
+                if (!file1.renameTo(file2)) {
+                    if (file1.exists()) {
+                        file1.delete();
+                    }
+                }
                 isSendImageStorage = false;
             }
             else if (!networkStatus) {
                 isSendImageStorage = false;
             }
             else {
-                new Thread(() -> {
-                    for (int i = 0; i < 10; i++) {
-                        try {
-                            Thread.sleep(1000);
-                        }
-                        catch (InterruptedException ignored) {
-                        }
+                for (int i = 0; i < 10; i++) {
+                    try {
+                        Thread.sleep(1000);
                     }
-                    setupSendImageStorage(pathTempImage);
-                }).start();
+                    catch (InterruptedException ignored) {
+                    }
+                }
+                setupSendImageStorage(pathTempImage);
             }
         }
 
@@ -454,6 +476,11 @@ public final class CameraThread {
         @Override
         public void onImageSaveStorage(int camId, String path) {
 
+        }
+
+        @Override
+        public void onLog(String log) {
+            mCallback.onLogCameraThread(log);
         }
     };
 

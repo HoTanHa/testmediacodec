@@ -3,6 +3,7 @@ package com.htha.device;
 import android.util.Log;
 
 import com.htha.cameraFeature.ImageHttp;
+import com.htha.cameraFeature.RouterURL;
 
 import java.io.BufferedReader;
 import java.io.IOException;
@@ -73,19 +74,22 @@ public class DeviceInfo {
             return;
         }
         isSending = true;
-        new Thread(new Runnable() {
+        Thread sendInfoThread = new Thread() {
             @Override
             public void run() {
                 try {
                     sendHttpInformationDevice();
                     Thread.sleep(1000);
                 }
-                catch (IOException | InterruptedException ignored) {
+                catch (IOException | InterruptedException e) {
+                    if (mCallback != null) {
+                        mCallback.onResultSendInfo("run: " + e.getMessage());
+                    }
                 }
-
                 isSending = false;
             }
-        }, "sendInfoThread").start();
+        };
+        sendInfoThread.start();
     }
 
     public void setInfoDeviceStatus(float diskPercent, String cpuPercent, String temp,
@@ -125,25 +129,13 @@ public class DeviceInfo {
                 "&cam1def=30,16,60,0&cam2def=30,16,60,0" +
                 "&cam1set=40,20,80,0&cam2set=50,20,80,0 ";
 
-        String sUrl;
-        if (ImageHttp.isSendBinhMinh()) {
-//            sUrl = "http://125.212.211.209:8102/api/manage/deviceInfo";
-            sUrl = "http://live1.gpsbinhminh.vn:8102/api/manage/deviceInfo";
-        }
-        else if (ImageHttp.isSendServerTest()) {
-//            sUrl = "http://125.212.211.209:8200/api/manage/deviceInfo";
-            sUrl = "http://live1.adsun.vn:8200/api/manage/deviceInfo";
-        }
-        else {
-//            sUrl = "http://125.212.211.209:8100/api/manage/deviceInfo";
-            sUrl = "http://live1.adsun.vn:8100/api/manage/deviceInfo";
-        }
+        String sUrl = RouterURL.getUrlSendInfoDevice();
         HttpURLConnection connection;
         URL url = new URL(sUrl + "?" + query1);
         connection = (HttpURLConnection) url.openConnection();
         connection.setDoInput(true);
         connection.setConnectTimeout(2000);
-        connection.setReadTimeout(1000);
+        connection.setReadTimeout(2000);
         connection.setRequestProperty("Connection", "Close");
         int serverResponseCode = connection.getResponseCode();
         BufferedReader br = null;

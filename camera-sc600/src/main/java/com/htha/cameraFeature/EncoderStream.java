@@ -93,7 +93,7 @@ public class EncoderStream {
         mediaCodec.configure(format, null, null, MediaCodec.CONFIGURE_FLAG_ENCODE);
         // create Surface encode
         encodeSurface = mediaCodec.createInputSurface();
-        mediaCodec.setCallback(callback, backgroundHandler);
+        mediaCodec.setCallback(callback);//, backgroundHandler);
     }
 
     private MediaCodec.Callback callback = new MediaCodec.Callback() {

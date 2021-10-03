@@ -16,12 +16,12 @@ import java.nio.ByteBuffer;
 import java.util.Date;
 
 public class CameraEncode {
-    private static final String TAG = "Camera Encode";
+    private static final String TAG = "CameraEncode";
     private NativeCamera nativeCamera;
-    private Context context;
+    private final Context context;
     private static int serialNumber = 0;
-    private static final int TIME_IMAGE = 60;
-    private static final int TIME_VIDEO = 60;
+    public static final int TIME_IMAGE = 120;
+    public static final int TIME_VIDEO = 60;
 
     private CameraCsi cameraCsi;
 
@@ -35,6 +35,7 @@ public class CameraEncode {
     private static long sTimeSetPathStorage;
     private static boolean isCreatingImageAll = false;
     private boolean isCameraExist = false;
+    private long timeCameraExist = 0;
 
     private MediaFormat formatStream = null;
     private EncoderStream encoderStream;
@@ -46,13 +47,12 @@ public class CameraEncode {
     private boolean isLiveStream = false;
 
     private long timeStartVideo = 0;
-    private long timeLastImage = 0;
+    private long timeNextImage;
     private long timeOpenCamera = 0;
     private boolean isCamOpened = false;
     private volatile boolean isRunning = false;
 
     private static final int IMAGE_FAIL_MAX = 10;
-    private long mTimeImage = 0;
     private volatile boolean getImage = false;
     private volatile boolean isGettingImage = false;
     private static int numImageStorage = 0;
@@ -67,22 +67,23 @@ public class CameraEncode {
     private static double dSpeed = 0.0f;
 
     private static long latitude = 0;
-    private static long longitude= 0;
+    private static long longitude = 0;
 
 
-    private ICameraEncodeCallback cameraEncodeCallback;
+    private final ICameraEncodeCallback cameraEncodeCallback;
 
-    private byte[] byteImageCopy = new byte[1280 * 720 * 3 / 2];
+    private final byte[] byteImageCopy = new byte[1280 * 720 * 3 / 2];
 
     public CameraEncode(Context context, String cameraId, int iCamId,
                         ICameraEncodeCallback camEncCallback) {
         this.context = context;
         this.camId = iCamId;
         cameraEncodeCallback = camEncCallback;
+        timeNextImage = System.currentTimeMillis() / 1000;
         cameraEncThread.start();
     }
 
-    public static void setLocation(double lat, double lon, double speed){
+    public static void setLocation(double lat, double lon, double speed) {
         dLat = lat;
         dLon = lon;
         dSpeed = speed;
@@ -92,7 +93,11 @@ public class CameraEncode {
     }
 
     public synchronized void setCameraExist(boolean exist) {
+        if (exist && !isCameraExist) {
+            timeCameraExist = System.currentTimeMillis() / 1000;
+        }
         isCameraExist = exist;
+
     }
 
     public boolean isCameraExist() {
@@ -115,7 +120,20 @@ public class CameraEncode {
         storageStatus = true;
     }
 
-    private Thread cameraEncThread = new Thread(new Runnable() {
+    public boolean requestGetImage() {
+        if (isCameraExist && ((System.currentTimeMillis() / 1000) > (timeCameraExist + 4))) {
+            getImage = true;
+            return true;
+        }
+        return false;
+
+    }
+
+    public long getTimeNextImage() {
+        return timeNextImage;
+    }
+
+    private final Thread cameraEncThread = new Thread(new Runnable() {
         @Override
         public void run() {
             configure();
@@ -133,12 +151,15 @@ public class CameraEncode {
                 }
                 if (storageStatus && (time >= (sTimeSetPathStorage + 5)) && isCamOpened) {
                     if (isSavingVideo()) {
-                        if (time >= (timeStartVideo + TIME_VIDEO)) {
+                        if (time >= (timeStartVideo + TIME_VIDEO) && isCameraExist && time > (timeCameraExist + 3)) {
                             stopSaveMp4();
                             startSaveMp4();
                         }
+                        else if (!isCameraExist && time >= (timeStartVideo + 20)) {
+                            stopSaveMp4();
+                        }
                     }
-                    else if (time >= timeTmpSetPath) {
+                    else if (time >= timeTmpSetPath && isCameraExist && time > (timeCameraExist + 3)) {
                         timeTmpSetPath = time + 1;
                         if (videoMuxer != null) {
                             startSaveMp4();
@@ -174,13 +195,6 @@ public class CameraEncode {
                     }
                 }
 
-                if (isCameraExist && (time > (timeOpenCamera + 5))
-                        && (time >= (timeLastImage + TIME_IMAGE))) {
-                    timeLastImage = time;
-//                    Log.d(TAG, "run: image image.." + camId);
-                    //--TODO: create Image
-                            getImage = true;
-                }
                 try {
                     Thread.sleep(100);
                 }
@@ -205,20 +219,26 @@ public class CameraEncode {
         CamInfo camInfo = cameraSC600.getCamInfo(camId);
         cameraCsi = new CameraCsi(camId, cameraCsiCallback);
 
+        int temp = 0;
         while (!isGetVideoMainFormat) {
             try {
                 Thread.sleep(100);
             }
             catch (InterruptedException ignored) {
             }
+            temp++;
+            if (temp >= 50) {
+                break;
+            }
         }
-
-        videoMuxer = new VideoMuxer(camId);
-        videoMuxer.setVideoEncodeCallback(videoMuxerCallback);
-        videoMuxer.setVideoFormat(formatMain);
+        if (isGetVideoMainFormat) {
+            videoMuxer = new VideoMuxer(camId);
+            videoMuxer.setVideoEncodeCallback(videoMuxerCallback);
+            videoMuxer.setVideoFormat(formatMain);
+        }
     }
 
-    private CameraCsi.CameraCsiCallback cameraCsiCallback = new CameraCsi.CameraCsiCallback() {
+    private final CameraCsi.CameraCsiCallback cameraCsiCallback = new CameraCsi.CameraCsiCallback() {
         @Override
         public void onCameraOpen() {
             isCamOpened = true;
@@ -242,6 +262,7 @@ public class CameraEncode {
                     getImage = false;
                     System.arraycopy(iBuffer, 0, byteImageCopy, 0, iBuffer.length);
                     createImage(date);
+                    timeNextImage = date.getTime() / 1000 + TIME_IMAGE;
                 }
             }
         }
@@ -272,6 +293,15 @@ public class CameraEncode {
 
     private void startSaveMp4() {
         if (videoMuxer != null && formatMain != null) {
+            videoMuxer.startSaveVideoFile(pathStorage);
+            if (encoderMain != null) {
+                encoderMain.requestKeyFrame();
+            }
+        }
+        else if (videoMuxer == null && formatMain != null) {
+            videoMuxer = new VideoMuxer(camId);
+            videoMuxer.setVideoEncodeCallback(videoMuxerCallback);
+            videoMuxer.setVideoFormat(formatMain);
             videoMuxer.startSaveVideoFile(pathStorage);
             if (encoderMain != null) {
                 encoderMain.requestKeyFrame();
@@ -473,7 +503,7 @@ public class CameraEncode {
 
         @Override
         public void onLogResult(String log) {
-
+            cameraEncodeCallback.onLog(log);
         }
     };
 
@@ -566,5 +596,7 @@ public class CameraEncode {
         void onStreamError(int camId);
 
         void onImageSaveStorage(int camId, String path);
+
+        void onLog(String log);
     }
 }

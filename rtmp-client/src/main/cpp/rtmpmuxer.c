@@ -23,15 +23,15 @@
 
 
 static int pthread_setcancelstate1(int state, int *oldstate) {
-	sigset_t   new, old;
+	sigset_t new, old;
 	int ret;
-	sigemptyset (&new);
-	sigaddset (&new, SIG_CANCEL_SIGNAL1);
+	sigemptyset(&new);
+	sigaddset(&new, SIG_CANCEL_SIGNAL1);
 
-	ret = pthread_sigmask(state == PTHREAD_CANCEL_ENABLE1 ? SIG_BLOCK : SIG_UNBLOCK, &new , &old);
-	if(oldstate != NULL)
-	{
-		*oldstate =sigismember(&old,SIG_CANCEL_SIGNAL1) == 0 ? PTHREAD_CANCEL_DISABLE1 : PTHREAD_CANCEL_ENABLE1;
+	ret = pthread_sigmask(state == PTHREAD_CANCEL_ENABLE1 ? SIG_BLOCK : SIG_UNBLOCK, &new, &old);
+	if (oldstate != NULL) {
+		*oldstate = sigismember(&old, SIG_CANCEL_SIGNAL1) == 0 ? PTHREAD_CANCEL_DISABLE1
+															   : PTHREAD_CANCEL_ENABLE1;
 	}
 	return ret;
 }
@@ -65,11 +65,13 @@ void add_buffer_to_queue(struct rtmpmuxer_t *muxer, uint8_t *buffer, int length,
 			muxer->head_buff->length = (uint32_t) length;
 			muxer->head_buff->timestamp = (int) timestamp;
 			muxer->head_buff->next = NULL;
-		} else {
+		}
+		else {
 			free(muxer->head_buff);
 			muxer->head_buff = NULL;
 		}
-	} else {
+	}
+	else {
 		struct rtmp_buffer_queue *current = muxer->head_buff;
 		while (current->next != NULL) {
 			current = current->next;
@@ -81,7 +83,8 @@ void add_buffer_to_queue(struct rtmpmuxer_t *muxer, uint8_t *buffer, int length,
 			current->next->length = (uint32_t) length;
 			current->next->timestamp = (int) timestamp;
 			current->next->next = NULL;
-		} else {
+		}
+		else {
 			free(current->next);
 			current->next = NULL;
 		}
@@ -318,7 +321,12 @@ int rtmp_send_stream_h264(RTMP *rtmp, uint8_t *bufferFrame_NAL, uint32_t n_NAL, 
 
 	/*copy data*/
 	memcpy(&body[9], &bufferFrame_NAL[IDX_NAL_TYPE], len);
-
+	if (type == 0x05) {
+		body[9] = 0x65;
+	}
+	else {
+		body[9] = 0x61;
+	}
 	packet->m_hasAbsTimestamp = 0;
 	packet->m_packetType = RTMP_PACKET_TYPE_VIDEO;
 	packet->m_nInfoField2 = rtmp->m_stream_id;
@@ -365,7 +373,8 @@ int rtmp_sender_write_video_frame(RTMP *rtmp, uint8_t *data, uint32_t total, int
 		}
 
 		result = rtmp_send_sps_pps(rtmp, nal, nal_len, nal_n, nal_len_n, timeStamp);
-	} else {
+	}
+	else {
 		result = rtmp_send_stream_h264(rtmp, data, total, timeStamp);
 	}
 
@@ -377,8 +386,7 @@ void thread_send_rtmp(void *arg) {
 	pthread_setname_np(pthread_self(), "rtmpThread");
 
 	int s32Ret = pthread_setcancelstate1(PTHREAD_CANCEL_ENABLE1, NULL);
-	if (s32Ret != 0)
-	{
+	if (s32Ret != 0) {
 		exit(EXIT_FAILURE);
 	}
 	struct rtmpmuxer_t *muxer = (struct rtmpmuxer_t *) arg;
@@ -392,13 +400,14 @@ void thread_send_rtmp(void *arg) {
 		pthread_mutex_lock(&(muxer->rtmp_mutex));
 		if (muxer->head_buff == NULL) {
 			isNull = 1;
-		} else {
+		}
+		else {
 			isNull = 0;
 		}
 		pthread_mutex_unlock(&(muxer->rtmp_mutex));
 		if (isNull == 0) {
 			time1 = time(NULL);
-			if (muxer->rtmp!=NULL) {
+			if (muxer->rtmp != NULL) {
 				int res = rtmp_sender_write_video_frame(muxer->rtmp, muxer->head_buff->buffer,
 														muxer->head_buff->length,
 														muxer->head_buff->timestamp, 0,
@@ -409,13 +418,14 @@ void thread_send_rtmp(void *arg) {
 			timeSend = time2 - time1;
 			if (timeSend > 2) {
 				free_queue(muxer);
-			} else {
+			}
+			else {
 				free_head_queue(muxer);
 			}
 		}
 		usleep(2000);
 	}
-	if (muxer->rtmp!=NULL) {
+	if (muxer->rtmp != NULL) {
 		RTMP_Close(muxer->rtmp);
 	}
 	pthread_exit(0);
@@ -426,21 +436,21 @@ void thread_send_rtmp(void *arg) {
  * ***********************************************/
 
 jboolean
-Java_com_example_rtmpClient_RTMPMuxer_nIsConnected(JNIEnv *env, jobject thiz,
-													 jlong rtmp_pointer) {
+Java_com_htha_rtmpClient_RTMPMuxer_nIsConnected(JNIEnv *env, jobject thiz,
+												jlong rtmp_pointer) {
 	// TODO: implement nIsConnected()
 	// RTMP *rtmp = (RTMP *)rtmp_pointer;
 	// return rtmp_is_connected(rtmp) ? true : false;
 
 	struct rtmpmuxer_t *muxer = (struct rtmpmuxer_t *) rtmp_pointer;
-	if(muxer->rtmp !=NULL){
+	if (muxer->rtmp != NULL) {
 		return RTMP_IsConnected(muxer->rtmp);
 	}
 	return 0;
 };
 
 jint
-Java_com_example_rtmpClient_RTMPMuxer_nClose(JNIEnv *env, jobject thiz, jlong rtmp_pointer) {
+Java_com_htha_rtmpClient_RTMPMuxer_nClose(JNIEnv *env, jobject thiz, jlong rtmp_pointer) {
 	// TODO: implement nClose()
 	// RTMP *rtmp = (RTMP *)rtmp_pointer;
 	// rtmp_close(rtmp);
@@ -452,7 +462,7 @@ Java_com_example_rtmpClient_RTMPMuxer_nClose(JNIEnv *env, jobject thiz, jlong rt
 	pthread_cancel1(muxer->tid);
 	usleep(1000);
 	pthread_join(muxer->tid, NULL);
-	if (muxer!=NULL && muxer->rtmp !=NULL) {
+	if (muxer != NULL && muxer->rtmp != NULL) {
 		RTMP_Free(muxer->rtmp);
 		muxer->rtmp = NULL;
 	}
@@ -464,18 +474,18 @@ Java_com_example_rtmpClient_RTMPMuxer_nClose(JNIEnv *env, jobject thiz, jlong rt
 }
 
 jint
-Java_com_example_rtmpClient_RTMPMuxer_nWriteAudio(JNIEnv *env, jobject thiz, jlong rtmp_pointer,
-													jbyteArray data_, jint offset, jint length,
-													jlong timestamp) {
+Java_com_htha_rtmpClient_RTMPMuxer_nWriteAudio(JNIEnv *env, jobject thiz, jlong rtmp_pointer,
+											   jbyteArray data_, jint offset, jint length,
+											   jlong timestamp) {
 	// TODO: implement nWriteAudio()
 	struct rtmpmuxer_t *muxer = (struct rtmpmuxer_t *) rtmp_pointer;
 	return 0;
 };
 
 jint
-Java_com_example_rtmpClient_RTMPMuxer_nWriteVideo(JNIEnv *env, jobject thiz, jlong rtmp_pointer,
-													jbyteArray data_, jint offset, jint length,
-													jlong timestamp) {
+Java_com_htha_rtmpClient_RTMPMuxer_nWriteVideo(JNIEnv *env, jobject thiz, jlong rtmp_pointer,
+											   jbyteArray data_, jint offset, jint length,
+											   jlong timestamp) {
 	// TODO: implement nWriteVideo()
 	if (length > RTMP_FRAME_SIZE_MAX) {
 		return 0;
@@ -493,14 +503,14 @@ Java_com_example_rtmpClient_RTMPMuxer_nWriteVideo(JNIEnv *env, jobject thiz, jlo
 }
 
 jint
-Java_com_example_rtmpClient_RTMPMuxer_nOpen(JNIEnv *env, jobject thiz, jlong rtmp_pointer,
-											  jstring url_, jint video_width, jint video_height) {
+Java_com_htha_rtmpClient_RTMPMuxer_nOpen(JNIEnv *env, jobject thiz, jlong rtmp_pointer,
+										 jstring url_, jint video_width, jint video_height) {
 	// TODO: implement nOpen()
 	struct rtmpmuxer_t *muxer = (struct rtmpmuxer_t *) rtmp_pointer;
 	const char *url = (*env)->GetStringUTFChars(env, url_, NULL);
 	int result = rtmp_open_for_write(muxer->rtmp, (char *) url, video_width, video_height);
-	if (result!=RTMP_SUCCESS){
-		if (muxer->rtmp!=NULL) {
+	if (result != RTMP_SUCCESS) {
+		if (muxer->rtmp != NULL) {
 			RTMP_Free(muxer->rtmp);
 			muxer->rtmp = NULL;
 		}
@@ -511,7 +521,7 @@ Java_com_example_rtmpClient_RTMPMuxer_nOpen(JNIEnv *env, jobject thiz, jlong rtm
 }
 
 jlong
-Java_com_example_rtmpClient_RTMPMuxer_nativeAlloc(JNIEnv *env, jobject thiz) {
+Java_com_htha_rtmpClient_RTMPMuxer_nativeAlloc(JNIEnv *env, jobject thiz) {
 	// TODO: implement nativeAlloc()
 	struct rtmpmuxer_t *muxer = (struct rtmpmuxer_t *) malloc(sizeof(struct rtmpmuxer_t));
 	muxer->rtmp = RTMP_Alloc();

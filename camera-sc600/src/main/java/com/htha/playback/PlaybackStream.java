@@ -183,7 +183,7 @@ public class PlaybackStream {
                         timeStampFrameMs = videoMp4.getFramePresentationMs();
                         int timeStamp = timeStampMsRtmp + timeStampFrameMs;
                         if (videoMp4.isKeyFrame()) {
-                            rtmpMuxer.writeVideo(bufferSPS_PPS, 0, lengthBufferSPS_PPS, timeStamp);
+                            rtmpMuxer.writeVideo(bufferSPS_PPS, 0, lengthBufferSPS_PPS, (timeStamp>0? (timeStamp-1):0));
                         }
                         byte[] buffer = new byte[frameSize];
                         videoMp4.getFrameByteBuffer().get(buffer, 0, frameSize);
