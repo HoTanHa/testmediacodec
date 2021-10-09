@@ -18,7 +18,7 @@ public final class CameraSC600 implements IQCarCamInStatusCB {
     private static CameraSC600 cameraSC600_instance = null;
     private static boolean isRunning = false;
     private static Thread camSC600Thread;
-    private static final int USE_BUS_CSI = 1;
+    private static final int USE_BUS_CSI = 2;
     private static int CSI_NUMS[];
     private static Map<Integer, QCarCamera> qCarCameraMap = new ConcurrentHashMap<Integer, QCarCamera>();
 
@@ -90,12 +90,12 @@ public final class CameraSC600 implements IQCarCamInStatusCB {
                     }
                     else {
                         numCam = 2;
-                        type = 1;//SC600Params.InputType.CSI0_CH0CH1CH2CH3_720P;
+                        type = SC600Params.InputType.CSI0_CH0CH1CH2CH3_1080P;
                     }
                 }
                 else {//if (value == SC600Params.CSI_NUM.CAMERA_CSI2) {
                     numCam = 2;
-                    type = 1;//SC600Params.InputType.CSI0_CH0CH1CH2CH3_720P;
+                    type = SC600Params.InputType.CSI2_ADSUN;
                 }
                 Log.d(TAG, "CameraSC600:  csiNum = " + value + " inputNum = " +
                         numCam + " inputType = " + type);
@@ -122,12 +122,12 @@ public final class CameraSC600 implements IQCarCamInStatusCB {
 
         isInsertCam = new boolean[4];
         Arrays.fill(isInsertCam, false);
-        if (USE_BUS_CSI==1){
+        if (USE_BUS_CSI == 1) {
             addCameraDetect(SC600Params.CSI_NUM.CAMERA_CSI0, 4);
         }
         else {
-            addCameraDetect(SC600Params.CSI_NUM.CAMERA_CSI0, 4);
-//            addCameraDetect(SC600Params.CSI_NUM.CAMERA_CSI2, 2);
+            addCameraDetect(SC600Params.CSI_NUM.CAMERA_CSI0, 2);
+            addCameraDetect(SC600Params.CSI_NUM.CAMERA_CSI2, 2);
         }
         detectInsert.startDetectThread();
 

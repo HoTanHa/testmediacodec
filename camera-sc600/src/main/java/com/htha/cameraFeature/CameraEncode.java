@@ -155,7 +155,7 @@ public class CameraEncode {
                             stopSaveMp4();
                             startSaveMp4();
                         }
-                        else if (!isCameraExist && time >= (timeStartVideo + 20)) {
+                        else if (!isCameraExist && time >= (timeStartVideo + TIME_VIDEO/2)) {
                             stopSaveMp4();
                         }
                     }

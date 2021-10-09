@@ -28,6 +28,7 @@ import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.Calendar;
 import java.util.Date;
+import java.util.Objects;
 import java.util.Timer;
 import java.util.TimerTask;
 
@@ -40,8 +41,10 @@ public class MainActivity extends AppCompatActivity {
         System.loadLibrary("native-lib");
     }
 
-    private static String LINK_STREAM1 = "rtmp://192.168.1.2:1935/live/camera1";
-    private static String LINK_STREAM2 = "rtmp://192.168.1.2:1935/live/camera2";
+    private  static String LINK_STREAM1 = "rtmp://125.212.211.209:1935/live/testcamera1";
+    private static String LINK_STREAM2 = "rtmp://125.212.211.209:1935/live/testcamera2";
+//    private static String LINK_STREAM1 = "rtmp://192.168.1.2:1935/live/camera1";
+//    private static String LINK_STREAM2 = "rtmp://192.168.1.2:1935/live/camera2";
     private static String LINK_STREAM3 = "rtmp://192.168.1.2:1935/live/camera3";
     private static String LINK_STREAM4 = "rtmp://192.168.1.2:1935/live/camera4";
     private static String LINK_PLAYBACK = "rtmp://192.168.1.2:1935/live/playback";
@@ -411,7 +414,7 @@ public class MainActivity extends AppCompatActivity {
     private String getPathSDCARD(){
         File mediaRW = new File("/mnt/media_rw");
         if (mediaRW.exists()){
-            for (File item:mediaRW.listFiles()                 ) {
+            for (File item: Objects.requireNonNull(mediaRW.listFiles())) {
                 if (item.getName().length()==9){
                     return item.getPath();
                 }

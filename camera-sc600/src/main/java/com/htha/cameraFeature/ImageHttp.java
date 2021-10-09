@@ -1,7 +1,6 @@
 package com.htha.cameraFeature;
 
 import android.content.Context;
-import android.graphics.Bitmap;
 import android.graphics.ImageFormat;
 import android.graphics.Rect;
 import android.graphics.YuvImage;

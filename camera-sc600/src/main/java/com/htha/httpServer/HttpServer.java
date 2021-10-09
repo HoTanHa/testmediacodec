@@ -388,7 +388,6 @@ public final class HttpServer extends NanoHTTPD {
             catch (ParseException e) {
                 e.printStackTrace();
             }
-//            Log.d(TAG, "serve: Query video..." + cam + "....." + time);
             return responseListVideoInHour(cam, time);
         }
         else if (uri.equals("/api/info")) {
@@ -881,11 +880,8 @@ public final class HttpServer extends NanoHTTPD {
             key2[i] = (byte) ((i % 3 == 0) ? (x * 2 + x % 8 + 1) : ((i % 3 == 1) ? (x + 25 + i % 10 - i % 4) : ((x < 0x35) ? (x + 33 - i % 10) : (x + 54 + i % 10))));
         }
         String sKey2 = new String(key2, 0, key.length);
-//        Log.d(TAG, "encodeKeyToTokenKey: key2: " + sKey2);
         String sKey3 = "ADSUN-" + sKey2 + "-" + sKey.substring(15);
-//        Log.d(TAG, "encodeKeyToTokenKey: key3: " + sKey3);
         String encodedBytes = Base64.encodeToString(sKey3.getBytes(), Base64.NO_WRAP);
-//        Log.d(TAG, "encodeKeyToTokenKey: key4: " + encodedBytes);
         return encodedBytes;
     }
 

@@ -326,6 +326,7 @@ public final class CameraThread {
             long timeCheckCamExist = time;
             long timeImageSave = time;
             long timeCreateImage = time + 30;
+            boolean isInsert;
             for (CameraEncode cameraEncode : cameraEncodes) {
                 cameraEncode.setCameraExist(true);
             }
@@ -339,7 +340,8 @@ public final class CameraThread {
                 if (time >= timeCheckCamExist) {
                     timeCheckCamExist = time + 1;
                     for (int i = 0; i < cameraEncodes.size(); i++) {
-                        if (CameraSC600.getInstance().isCamInsert(i) != cameraEncodes.get(i).isCameraExist()) {
+                        isInsert =CameraSC600.getInstance().isCamInsert(i);
+                        if (isInsert != cameraEncodes.get(i).isCameraExist()) {
                             if (CameraSC600.getInstance().isCamInsert(i)) {
                                 mCallback.onCameraConnect(i);
                             }
@@ -347,7 +349,8 @@ public final class CameraThread {
                                 mCallback.onCameraDisconnect(i);
                             }
                         }
-                        cameraEncodes.get(i).setCameraExist(CameraSC600.getInstance().isCamInsert(i));
+                        cameraEncodes.get(i).setCameraExist(isInsert);
+                        DeviceInfo.getInstance().setCameraStatus(i, isInsert);
                     }
                 }
 
