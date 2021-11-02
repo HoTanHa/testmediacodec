@@ -34,7 +34,8 @@ Java_com_htha_mylibcommon_NativeFunction_nResetUsb(JNIEnv *env, jclass clazz, js
 	int res = 0;
 	if (fd < 0) {
 		res = 1;
-	} else {
+	}
+	else {
 		int rc = ioctl(fd, USBDEVFS_RESET, 0);
 		if (rc < 0) {
 			res = 2;
@@ -45,3 +46,35 @@ Java_com_htha_mylibcommon_NativeFunction_nResetUsb(JNIEnv *env, jclass clazz, js
 	return res;
 }
 
+
+extern "C"
+JNIEXPORT jint JNICALL
+Java_com_htha_mylibcommon_NativeFunction_setGpio(JNIEnv *env, jclass clazz, jint pin,
+												 jboolean on_off) {
+	// TODO: implement setGpio()
+	int fd;
+	char filename[50] = {0};
+	static const char value_off = '0';
+	static const char value_on = '1';
+
+	sprintf(filename, "/sys/class/gpio/gpio%d/value", pin);
+	fd = open(filename, O_RDWR);
+	if (fd < 0) {
+		return (false);
+	}
+	size_t ret = 0;
+	if (on_off) {
+		ret = write(fd, &value_on, 1);
+	}
+	else {
+		ret = write(fd, &value_off, 1);
+	}
+	close(fd);
+	if (ret > 0) {
+		return 1;
+	}
+	else {
+		return 0;
+	}
+
+}

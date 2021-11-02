@@ -17,6 +17,7 @@ import com.htha.camera_sc600.CameraSC600;
 import com.htha.device.DeviceInfo;
 import com.htha.httpServer.HttpServer;
 import com.htha.mylibcommon.NativeCamera;
+import com.htha.mylibcommon.NativeFunction;
 import com.htha.playback.PlaybackStream;
 
 import org.java_websocket.client.WebSocketClient;
@@ -41,15 +42,19 @@ public class MainActivity extends AppCompatActivity {
         System.loadLibrary("native-lib");
     }
 
-    private  static String LINK_STREAM1 = "rtmp://125.212.211.209:1935/live/testcamera1";
-    private static String LINK_STREAM2 = "rtmp://125.212.211.209:1935/live/testcamera2";
-//    private static String LINK_STREAM1 = "rtmp://192.168.1.2:1935/live/camera1";
-//    private static String LINK_STREAM2 = "rtmp://192.168.1.2:1935/live/camera2";
-    private static String LINK_STREAM3 = "rtmp://192.168.1.2:1935/live/camera3";
-    private static String LINK_STREAM4 = "rtmp://192.168.1.2:1935/live/camera4";
-    private static String LINK_PLAYBACK = "rtmp://192.168.1.2:1935/live/playback";
+    //    private static String LINK_HOST_STREAM = "rtmp://192.168.1.2:1935/live/";
+    private static String LINK_HOST_STREAM = "rtmp://192.168.20.101:1935/live/";
+    //    private static String LINK_HOST_STREAM = "rtmp://125.212.211.209:1935/live/";
     private static String LINK_HOST = "192.168.1.2";
+    private static String LINK_STREAM1 = LINK_HOST_STREAM + "testcamera1";
+    private static String LINK_STREAM2 = LINK_HOST_STREAM + "testcamera2";
+    private static String LINK_STREAM3 = LINK_HOST_STREAM + "testcamera3";
+    private static String LINK_STREAM4 = LINK_HOST_STREAM + "testcamera4";
+    private static String LINK_PLAYBACK = LINK_HOST_STREAM + "testplayback";
 
+
+    private Button btnOnPowerCam;
+    private Button btnOffPowerCam;
 
     private Button btnStreamOn1;
     private Button btnStreamOff1;
@@ -94,6 +99,12 @@ public class MainActivity extends AppCompatActivity {
 
         getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
         // Example of a call to a native method
+        btnOnPowerCam = (Button) this.findViewById(R.id.btn_onPower);
+        btnOnPowerCam.setOnClickListener(mOnClickListener);
+
+        btnOffPowerCam = (Button) this.findViewById(R.id.btn_offPower);
+        btnOffPowerCam.setOnClickListener(mOnClickListener);
+
         btnStreamOn1 = (Button) this.findViewById(R.id.button_on1);
         btnStreamOn1.setOnClickListener(mOnClickListener);
 
@@ -147,12 +158,6 @@ public class MainActivity extends AppCompatActivity {
 //        tv.setText(stringFromJNI());
         threadTest.start();
 
-        DeviceInfo.getInstance().setCallBack(new DeviceInfo.InfoCallback() {
-            @Override
-            public void onResultSendInfo(String log) {
-                Log.d(TAG, "onResultSendInfo: " + log);
-            }
-        });
         mTimer.schedule(new TimerTask() {
             @Override
             public void run() {
@@ -165,8 +170,8 @@ public class MainActivity extends AppCompatActivity {
                 }
                 count++;
                 if (count % 20 == 0) {
-                    DeviceInfo.getInstance().setInfoDeviceStatus(90.0f, "70", "12", "192.168.1.7", 1, 12.2f);
-                    DeviceInfo.getInstance().sendInfo();
+                    if (cameraThread!=null){ cameraThread.setInfoDeviceStatus(90.0f, "70", "12", "192.168.1.7", 1, 12.2f);}
+                    cameraThread.sendInfo();
                 }
             }
         }, 1000, 1000);
@@ -183,12 +188,12 @@ public class MainActivity extends AppCompatActivity {
     CameraThread.ICameraThreadCallback cameraThreadCallback = new CameraThread.ICameraThreadCallback() {
         @Override
         public void onCameraConnect(int camId) {
-
+            Log.e(TAG, "onCameraConnect: aaaaaaaaaaaaa" + camId );
         }
 
         @Override
         public void onCameraDisconnect(int camId) {
-
+            Log.d(TAG, "onCameraDisconnect: bbbbbbbbbbbb" + camId);
         }
 
         @Override
@@ -203,6 +208,11 @@ public class MainActivity extends AppCompatActivity {
 
         @Override
         public void onLogCameraThread(String log) {
+
+        }
+
+        @Override
+        public void onServerCommand(String cmd) {
 
         }
     };
@@ -303,6 +313,12 @@ public class MainActivity extends AppCompatActivity {
         @Override
         public void onClick(View v) {
             switch (v.getId()) {
+                case R.id.btn_onPower:
+                    NativeFunction.setGpio(23, true);
+                    break;
+                case R.id.btn_offPower:
+                    NativeFunction.setGpio(23, false);
+                    break;
                 case R.id.button_on1:
                     Log.i(TAG, "onClick: on1 stream");
                     cameraThread.startStreamRtmp(0, LINK_STREAM1);
@@ -345,7 +361,7 @@ public class MainActivity extends AppCompatActivity {
                     cameraThread.setStorageStatus(false, null);
                     break;
                 case R.id.button_OnPlb:
-                    if (playbackStream==null) {
+                    if (playbackStream == null) {
                         String PathSDCARD = getPathSDCARD();
                         playbackStream = new PlaybackStream(getApplicationContext(), PathSDCARD, new PlaybackStream.IPlaybackCallback() {
                             @Override
@@ -368,14 +384,14 @@ public class MainActivity extends AppCompatActivity {
 
                             }
                         });
-                        playbackStream.start("rtmp://125.212.211.209:1935/live/testplaybackhtha", 1, 1632359200);
+                        playbackStream.start(LINK_PLAYBACK, 1, 1632359200);
                     }
                     break;
                 case R.id.button_StopPlb:
-                        if (playbackStream!=null){
-                            playbackStream.stop();
-                            playbackStream=null;
-                        }
+                    if (playbackStream != null) {
+                        playbackStream.stop();
+                        playbackStream = null;
+                    }
                     break;
                 case R.id.button_OnRTP1:
 
@@ -390,7 +406,7 @@ public class MainActivity extends AppCompatActivity {
                                 new HttpServer.ServerCallback() {
                                     @Override
                                     public void onTimeout() {
-                                        
+
                                     }
                                 });
                     }
@@ -411,11 +427,11 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
-    private String getPathSDCARD(){
+    private String getPathSDCARD() {
         File mediaRW = new File("/mnt/media_rw");
-        if (mediaRW.exists()){
-            for (File item: Objects.requireNonNull(mediaRW.listFiles())) {
-                if (item.getName().length()==9){
+        if (mediaRW.exists()) {
+            for (File item : Objects.requireNonNull(mediaRW.listFiles())) {
+                if (item.getName().length() == 9) {
                     return item.getPath();
                 }
             }
@@ -434,10 +450,10 @@ public class MainActivity extends AppCompatActivity {
     protected void onPause() {
         super.onPause();
         Log.d(TAG, "application is onPause");
-        if (cameraThread != null) {
-            cameraThread.stop();
-            cameraThread = null;
-        }
+//        if (cameraThread != null) {
+//            cameraThread.stop();
+//            cameraThread = null;
+//        }
     }
 
     @Override

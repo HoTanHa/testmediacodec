@@ -6,7 +6,9 @@ import android.util.Log;
 
 import com.htha.camera_sc600.CameraSC600;
 import com.htha.device.DeviceInfo;
+import com.htha.mylibcommon.CommonFunction;
 import com.htha.mylibcommon.NativeCamera;
+import com.htha.playback.PlaybackStream;
 
 import java.io.File;
 import java.util.ArrayList;
@@ -31,6 +33,7 @@ public final class CameraThread {
     private boolean isSendImageStorage = false;
 
     private boolean networkStatus = false;
+    private boolean isAllowCreateImage = true;
 
     private static ICameraThreadCallback mCallback;
     private CameraSC600 cameraSC600;
@@ -43,8 +46,11 @@ public final class CameraThread {
         this.mContext = context;
         CameraThread.serialNumber = sn;
         CameraEncode.setSerialNumber(sn);
+        CameraEncode.readConfigImage(FileConfig.getFile_TypeImage(mContext));
         mCallback = callback;
-        CameraSC600 cameraSC600 = CameraSC600.getInstance();
+        String path = FileConfig.getFile_TypeCam(mContext);
+        CameraSC600.setPathConfig(path);
+//        CameraSC600 cameraSC600 = CameraSC600.getInstance();
     }
 
     public synchronized void start() {
@@ -54,6 +60,10 @@ public final class CameraThread {
         }
         isRunning = true;
         cameraThread.start();
+    }
+
+    public void setQualityImage(int time, boolean isUse480p) {
+        CameraEncode.setImageParam(time, isUse480p);
     }
 
     public void stop() {
@@ -79,7 +89,43 @@ public final class CameraThread {
     public void setInfoLocation(double lat, double lon, double speed) {
         NativeCamera.setInfoLocation(lat, lon, speed);
         DeviceInfo.getInstance().setInfoLocation(serialNumber, lat, lon, speed);
+        CameraEncode.setLocation(lat, lon, speed);
     }
+
+    public void setInfoDeviceStatus(float diskPercent, String cpuPercent, String temp,
+                                    String ipDevice, int keyStatus, double adc) {
+        DeviceInfo.getInstance().setInfoDeviceStatus(diskPercent, cpuPercent, temp,
+                ipDevice, keyStatus, adc);
+    }
+
+    public void sendInfo() {
+        DeviceInfo.getInstance().setCallBack(mInfoCallback);
+        DeviceInfo.getInstance().sendInfo();
+    }
+
+    private final DeviceInfo.InfoCallback mInfoCallback = new DeviceInfo.InfoCallback() {
+        @Override
+        public void onResultSendInfo(String log) {
+
+        }
+
+        @Override
+        public void onServerCommand(String cmd) {
+            mCallback.onServerCommand(cmd);
+        }
+
+        @Override
+        public void onServerSetup(String cmd) {
+            if (cmd.startsWith("setupDevice:setImage:")) {
+                String[] data = cmd.split(":");
+                if (data.length == 4) {
+                    int time = CommonFunction.parseStringToInt(data[2]);
+                    int type = CommonFunction.parseStringToInt(data[3]);
+                    CameraEncode.setImageParam(time, (type == 480));
+                }
+            }
+        }
+    };
 
     public void setDriverInfo(String sBsXe, String sInfo) {
         if (sBsXe != null && sInfo != null) {
@@ -90,8 +136,30 @@ public final class CameraThread {
         }
     }
 
+    public void setStatusSendImage(boolean isSend) {
+        this.isAllowCreateImage = isSend;
+    }
+
+    public void startRTP(int camId, String host) {
+        if (camId >= cameraEncodes.size()) {
+            return;
+        }
+        if (cameraEncodes.get(camId).isCameraExist()) {
+            cameraEncodes.get(camId).startRTP(host);
+        }
+    }
+
+    public void stopRTP(int camId){
+        if (camId >= cameraEncodes.size()) {
+            return;
+        }
+        if (cameraEncodes.get(camId).isCameraExist()) {
+            cameraEncodes.get(camId).stopRTP();
+        }
+    }
+
     public void setStorageStatus(boolean status, String path) {
-        if (status && path!=null) {
+        if (status && path != null) {
             File fSdcard = new File(path);
             if (!fSdcard.exists()) {
                 Log.d(TAG, "setStorageStatus: Path Storage does not exit..!!!!!");
@@ -327,20 +395,39 @@ public final class CameraThread {
             long timeImageSave = time;
             long timeCreateImage = time + 30;
             boolean isInsert;
-            for (CameraEncode cameraEncode : cameraEncodes) {
-                cameraEncode.setCameraExist(true);
-            }
+            int countRunning = 0;
+//            for (CameraEncode cameraEncode : cameraEncodes) {
+//                cameraEncode.setCameraExist(true);
+//            }
             while (isRunning) {
                 time = System.currentTimeMillis() / 1000;
 
                 if (time >= timeCheckRunning) {
-                    timeCheckRunning = time + 60;
-                    Log.d(TAG, "run: CameraThread is running ...." + time);
+                    timeCheckRunning = time + 1;
+                    countRunning++;
+                    if (countRunning >= 60) {
+                        countRunning = 0;
+                        Log.d(TAG, "run: CameraThread is running ...." + time);
+                    }
+                    CameraSC600.getInstance().getCameraDetect();
+                    if (CameraSC600.isCameraError() || CameraSC600.getInstance().isChangeCamera()) {
+                        Log.d(TAG, "run: Camera Error..." + time);
+                        for (int i = 0; i < cameraEncodes.size(); i++) {
+                            cameraEncodes.get(i).close();
+                        }
+                        cameraEncodes.clear();
+                        CameraSC600.getInstance().stop();
+                        CameraSC600.clearObject();
+                        cameraSC600 = CameraSC600.getInstance();
+                        for (int i = 0; i < arrStrCamId.size(); i++) {
+                            cameraEncodes.add(i, new CameraEncode(mContext, arrStrCamId.get(i), i, cameraEncodeCallback));
+                        }
+                    }
                 }
                 if (time >= timeCheckCamExist) {
                     timeCheckCamExist = time + 1;
                     for (int i = 0; i < cameraEncodes.size(); i++) {
-                        isInsert =CameraSC600.getInstance().isCamInsert(i);
+                        isInsert = CameraSC600.getInstance().isCamInsert(i);
                         if (isInsert != cameraEncodes.get(i).isCameraExist()) {
                             if (CameraSC600.getInstance().isCamInsert(i)) {
                                 mCallback.onCameraConnect(i);
@@ -365,7 +452,7 @@ public final class CameraThread {
                     }
                 }
 
-                if (time >= timeCreateImage) {
+                if (isAllowCreateImage && time >= timeCreateImage) {
                     timeCreateImage = time + 1;
                     for (int i = 0; i < cameraEncodes.size(); i++) {
                         if (time > cameraEncodes.get(i).getTimeNextImage()) {
@@ -387,6 +474,8 @@ public final class CameraThread {
                 catch (InterruptedException ignored) {
                 }
             }
+            CameraSC600.getInstance().stop();
+            CameraSC600.clearObject();
         }
     }, "cameraThread");
 
@@ -497,6 +586,8 @@ public final class CameraThread {
         void onStreamOff(int camId);
 
         void onLogCameraThread(String log);
+
+        void onServerCommand(String cmd);
 
     }
 }

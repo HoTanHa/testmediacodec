@@ -56,6 +56,8 @@ public final class HttpServer extends NanoHTTPD {
     private long timeCheckTimeout = 0;
     private long timeLastRequestMs = 0;
 
+    private long minTimeVideo, maxTimeVideo;
+
     public HttpServer(Context context, String pathSdCard, int sn, int timeoutS, ServerCallback callback) {
         super(PORT);
         this.mContext = context;
@@ -100,6 +102,21 @@ public final class HttpServer extends NanoHTTPD {
             }
             readListImage();
             getInfoStorage();
+
+            minTimeVideo = System.currentTimeMillis() / 1000;
+            maxTimeVideo = minTimeVideo - 86400;
+            for (ArrayList<Long> item : listHourFolder) {
+                for (Long hour : item) {
+                    if (minTimeVideo > hour) {
+                        minTimeVideo = hour;
+                    }
+                    if (maxTimeVideo < hour) {
+                        maxTimeVideo = hour;
+                    }
+                }
+            }
+            maxTimeVideo+=3600;
+
             while (isRunning) {
                 timeCheckTimeout = System.currentTimeMillis();
                 if ((timeCheckTimeout - timeLastRequestMs) > TIMEOUT_SERVER) {
@@ -187,6 +204,17 @@ public final class HttpServer extends NanoHTTPD {
         else if (uri.equals("/test")) {
             JSONObject object = getVideoIntervalGroup();
             return newFixedLengthResponse(Response.Status.OK, "application/json", object.toString());
+        }
+        else if (uri.equals("/getLimitVideo")){
+
+            JSONObject limit = new JSONObject();
+            try {
+                limit.put("start", minTimeVideo);
+                limit.put("end", maxTimeVideo);
+            }
+            catch (JSONException e){
+            }
+            return newFixedLengthResponse(Response.Status.OK, "application/json", limit.toString());
         }
         else if (uri.equals("/getKey")) {
             String key = getKey();
@@ -356,7 +384,14 @@ public final class HttpServer extends NanoHTTPD {
             return response;
         }
         else if (uri.startsWith("/root")) {
-            return responseRootDirectory(uri);
+            String range = null;
+            range = header.get("range");
+            if (range == null) {
+                return responseRootDirectory(uri);
+            }
+            else {
+                return responseRangeFileMp4(uri, range);
+            }
         }
         else if (uri.equals("/api/getListHour")) {
             return responseDataHour();
@@ -753,7 +788,7 @@ public final class HttpServer extends NanoHTTPD {
             }
             catch (FileNotFoundException e) {
                 e.printStackTrace();
-                responseParamError();
+                return responseParamError();
             }
             String type = pathFile.substring(pathFile.lastIndexOf(".") + 1).toLowerCase();
 
@@ -770,9 +805,9 @@ public final class HttpServer extends NanoHTTPD {
             if (mineType == null) {
                 return newFixedLengthResponse(Response.Status.OK, MIME_PLAINTEXT, fis, file.length());
             }
-//            else if (mineType.equals("video/mp4")){
-//                return newChunkedResponse(Response.Status.OK, mineType, fis);
-//            }
+            else if (mineType.equals("video/mp4")) {
+                return newChunkedResponse(Response.Status.OK, mineType, fis);
+            }
 //                Response response = newFixedLengthResponse(Response.Status.OK, MIME_TYPES.get(type), fis, file.length());
             Response response = newFixedLengthResponse(Response.Status.OK, "application/octet-stream", fis, file.length());
             response.closeConnection(true);
@@ -780,6 +815,50 @@ public final class HttpServer extends NanoHTTPD {
 
         }
         return responseNotFound();
+    }
+
+    private Response responseRangeFileMp4(String uri, String rangeHeader) {
+        Log.d(TAG, "responseRangeFileMp4: " + uri + "..." + rangeHeader);
+        String path1 = uri.substring(5);
+        String path = path1.replaceAll("//", "/");
+        File file = new File(pathStorage + path);
+        String rangeValue = rangeHeader.trim().substring("bytes=".length());
+        long fileLength = file.length();
+        long start, end;
+        if (rangeValue.startsWith("-")) {
+            end = fileLength - 1;
+            start = fileLength - 1
+                    - Long.parseLong(rangeValue.substring("-".length()));
+        }
+        else {
+            String[] range = rangeValue.split("-");
+            start = Long.parseLong(range[0]);
+            end = range.length > 1 ? Long.parseLong(range[1])
+                    : fileLength - 1;
+        }
+        if (end > fileLength - 1) {
+            end = fileLength - 1;
+        }
+        try {
+            if (start <= end) {
+                long contentLength = end - start + 1;
+//            cleanupStreams();
+                FileInputStream fileInputStream = new FileInputStream(file);
+                //noinspection ResultOfMethodCallIgnored
+                fileInputStream.skip(start);
+                Response response = newFixedLengthResponse(Response.Status.PARTIAL_CONTENT, "video/mp4", fileInputStream, fileInputStream.available());
+                response.addHeader("Content-Length", contentLength + "");
+                response.addHeader("Content-Range", "bytes " + start + "-" + end + "/" + fileLength);
+                response.addHeader("Content-Type", "video/mp4");
+                return response;
+            }
+            else {
+                return newFixedLengthResponse(Response.Status.RANGE_NOT_SATISFIABLE, "text/html", rangeHeader);
+            }
+        }
+        catch (Exception e) {
+            return responseNotFound();
+        }
     }
 
     private Response responseParamError() {
@@ -1073,21 +1152,16 @@ public final class HttpServer extends NanoHTTPD {
             index += 2;
             index *= -1;
             if ((list.get(index)) + 60 > time) {
-                Log.d(TAG, "searchTimeVideo: between, bigger in 60s..." + time + ".." + timeReturn);
                 timeReturn = list.get(index);
             }
             else if (index == (list.size() - 1)) {
-                Log.d(TAG, "searchTimeVideo: bigger than maxValue..." + time + ".." + timeReturn);
             }
             else {
-                Log.d(TAG, "searchTimeVideo: between, bigger than 60s..." + time + ".." + timeReturn);
             }
         }
         else if (index == -1) {
-            Log.d(TAG, "searchTimeVideo: less than minValue..." + time + ".." + timeReturn);
         }
         else {
-            Log.d(TAG, "searchTimeVideo: exist in list..." + time + ".." + timeReturn);
             timeReturn = time;
         }
         return timeReturn;

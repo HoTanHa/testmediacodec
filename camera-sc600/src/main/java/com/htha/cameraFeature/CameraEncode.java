@@ -9,7 +9,11 @@ import android.view.Surface;
 import com.htha.camera_sc600.CamInfo;
 import com.htha.camera_sc600.CameraCsi;
 import com.htha.camera_sc600.CameraSC600;
+import com.htha.mylibcommon.CommonFunction;
 import com.htha.mylibcommon.NativeCamera;
+
+import org.json.JSONException;
+import org.json.JSONObject;
 
 import java.io.File;
 import java.nio.ByteBuffer;
@@ -20,8 +24,8 @@ public class CameraEncode {
     private NativeCamera nativeCamera;
     private final Context context;
     private static int serialNumber = 0;
-    public static final int TIME_IMAGE = 120;
-    public static final int TIME_VIDEO = 60;
+    private static int TIME_IMAGE = 120;
+    private static final int TIME_VIDEO = 60;
 
     private CameraCsi cameraCsi;
 
@@ -69,10 +73,12 @@ public class CameraEncode {
     private static long latitude = 0;
     private static long longitude = 0;
 
+    private static boolean isUseImageSub = false;
+    private static String pathConfigImage = null;
 
-    private final ICameraEncodeCallback cameraEncodeCallback;
+    private ICameraEncodeCallback cameraEncodeCallback;
 
-    private final byte[] byteImageCopy = new byte[1280 * 720 * 3 / 2];
+    private byte[] byteImageCopy = new byte[1280 * 720 * 3 / 2];
 
     public CameraEncode(Context context, String cameraId, int iCamId,
                         ICameraEncodeCallback camEncCallback) {
@@ -98,6 +104,54 @@ public class CameraEncode {
         }
         isCameraExist = exist;
 
+    }
+
+    public static void setImageParam(int timeSend, boolean is640_480) {
+        Log.d(TAG, "setImageParam:.." + timeSend + "...use480:.." + is640_480);
+        isUseImageSub = is640_480;
+        if (timeSend >= 1) {
+            TIME_IMAGE = timeSend * 60;
+        }
+        saveConfigImage(pathConfigImage);
+    }
+
+    public static void readConfigImage(String path) {
+        pathConfigImage = path;
+        String data = CommonFunction.readFile(path);
+        int quality = 720;
+        int time_t = 3;
+        try {
+            JSONObject jsonObject = new JSONObject(data);
+            if (jsonObject.has("quality") && jsonObject.has("time")) {
+                quality = jsonObject.getInt("quality");
+                time_t = jsonObject.getInt("time");
+
+            }
+        }
+        catch (JSONException e) {
+            e.printStackTrace();
+        }
+        isUseImageSub = (quality == 480);
+        TIME_IMAGE = time_t * 60;
+        saveConfigImage(path);
+    }
+
+    private static void saveConfigImage(String path) {
+        JSONObject jsonObject = new JSONObject();
+        int quality = 720;
+        int time_t = TIME_IMAGE / 60;
+        if (isUseImageSub) {
+            quality = 480;
+        }
+        try {
+            jsonObject.put("quality", quality);
+            jsonObject.put("time", time_t);
+            String srt = jsonObject.toString();
+            CommonFunction.writeToNewFile(path, srt);
+        }
+        catch (JSONException e) {
+            Log.e(TAG, "saveConfigImage: " + e.toString());
+        }
     }
 
     public boolean isCameraExist() {
@@ -133,7 +187,7 @@ public class CameraEncode {
         return timeNextImage;
     }
 
-    private final Thread cameraEncThread = new Thread(new Runnable() {
+    private Thread cameraEncThread = new Thread(new Runnable() {
         @Override
         public void run() {
             configure();
@@ -151,19 +205,17 @@ public class CameraEncode {
                 }
                 if (storageStatus && (time >= (sTimeSetPathStorage + 5)) && isCamOpened) {
                     if (isSavingVideo()) {
-                        if (time >= (timeStartVideo + TIME_VIDEO) && isCameraExist && time > (timeCameraExist + 3)) {
+                        if ((time >= (timeStartVideo + TIME_VIDEO)) && isCameraExist && (time > (timeCameraExist + 3))) {
                             stopSaveMp4();
                             startSaveMp4();
                         }
-                        else if (!isCameraExist && time >= (timeStartVideo + TIME_VIDEO/2)) {
+                        else if (!isCameraExist && (time >= (timeStartVideo + TIME_VIDEO / 2))) {
                             stopSaveMp4();
                         }
                     }
-                    else if (time >= timeTmpSetPath && isCameraExist && time > (timeCameraExist + 3)) {
+                    else if ((time >= timeTmpSetPath) && isCameraExist && (time > (timeCameraExist + 3))) {
                         timeTmpSetPath = time + 1;
-                        if (videoMuxer != null) {
-                            startSaveMp4();
-                        }
+                        startSaveMp4();
                     }
                 }
                 else if (!storageStatus && isSavingVideo()) {
@@ -202,7 +254,6 @@ public class CameraEncode {
                     Log.d(TAG, "Thread camEnc..sleep:" + e.getMessage());
                 }
             }
-            close();
         }
     }, "camEncodeThread");
 
@@ -222,7 +273,7 @@ public class CameraEncode {
         int temp = 0;
         while (!isGetVideoMainFormat) {
             try {
-                Thread.sleep(100);
+                Thread.sleep(10);
             }
             catch (InterruptedException ignored) {
             }
@@ -238,7 +289,7 @@ public class CameraEncode {
         }
     }
 
-    private final CameraCsi.CameraCsiCallback cameraCsiCallback = new CameraCsi.CameraCsiCallback() {
+    private CameraCsi.CameraCsiCallback cameraCsiCallback = new CameraCsi.CameraCsiCallback() {
         @Override
         public void onCameraOpen() {
             isCamOpened = true;
@@ -255,7 +306,7 @@ public class CameraEncode {
             byte[] iBuffer = buffer.array();
             if (nativeCamera != null) {
                 nativeCamera.drawBufferInfoToImage(iBuffer);
-                if (getImage) {
+                if (getImage && !isUseImageSub) {
                     Date date = new Date(nativeCamera.getTimeMsImage());
                     CameraEncode.isCreatingImageAll = true;
                     isGettingImage = true;
@@ -263,6 +314,25 @@ public class CameraEncode {
                     System.arraycopy(iBuffer, 0, byteImageCopy, 0, iBuffer.length);
                     createImage(date);
                     timeNextImage = date.getTime() / 1000 + TIME_IMAGE;
+                }
+            }
+        }
+
+        @Override
+        public void onRawDataSub(ByteBuffer buffer) {
+            if (isUseImageSub) {
+                byte[] iBuffer = buffer.array();
+                if (nativeCamera != null) {
+                    nativeCamera.drawInfoBufferInfoToImageSub(iBuffer);
+                    if (getImage) {
+                        Date date = new Date(nativeCamera.getTimeMsImage());
+                        CameraEncode.isCreatingImageAll = true;
+                        isGettingImage = true;
+                        getImage = false;
+                        System.arraycopy(iBuffer, 0, byteImageCopy, 0, iBuffer.length);
+                        createImage(date);
+                        timeNextImage = date.getTime() / 1000 + TIME_IMAGE;
+                    }
                 }
             }
         }
@@ -285,6 +355,12 @@ public class CameraEncode {
 
     private void createImage(Date date) {
         ImageHttp imageHttp = new ImageHttp(serialNumber, pathStorage, context);
+        if (isUseImageSub) {
+            imageHttp.setImageSize(640, 480, 70);
+        }
+        else {
+            imageHttp.setImageSize(1280, 720, 50);
+        }
         imageHttp.setImageSendCallBack(imageSendCallBack);
         boolean sendBuffer = (numImageStorage == 0);
         imageHttp.send(byteImageCopy, camId, date, sendBuffer, latitude, longitude);
@@ -418,6 +494,19 @@ public class CameraEncode {
     }
 //    }, "stopStreamThread");
 
+    public void startRTP(String host) {
+        if (videoMuxer != null) {
+            videoMuxer.startStreamRtp(host);
+        }
+    }
+
+    public void stopRTP() {
+        if (videoMuxer != null) {
+            videoMuxer.stopStreamRtp();
+        }
+
+    }
+
     public synchronized void close() {
         if (isLiveStream && !isStoppingStream) {
             new Thread(new Runnable() {
@@ -461,6 +550,7 @@ public class CameraEncode {
 
         formatMain = null;
         formatStream = null;
+        Log.d(TAG, "close: camera encode close ..." + camId);
     }
 
     private final ImageHttp.ImageSendCallBack imageSendCallBack = new ImageHttp.ImageSendCallBack() {
@@ -507,7 +597,7 @@ public class CameraEncode {
         }
     };
 
-    private final EncoderStream.EncodeDataCallback encStreamCallback = new EncoderStream.EncodeDataCallback() {
+    private EncoderStream.EncodeDataCallback encStreamCallback = new EncoderStream.EncodeDataCallback() {
         @Override
         public void onEncodeFormatChange(MediaFormat videoFormat) {
             Log.d(TAG, "onEncodeFormatChange: get video encode format stream rtmp.." + camId);
@@ -525,28 +615,32 @@ public class CameraEncode {
 
     private final VideoStream.IVideoStreamCallback videoStreamCallback = new VideoStream.IVideoStreamCallback() {
         @Override
-        public void onStreamSuccess(int camId, String urlStream) {
-            if (encoderStream != null) {
-                encoderStream.requestKeyFrame();
+        public void onStreamSuccess(int camId_cb, String urlStream) {
+            if (camId_cb == camId) {
+                if (encoderStream != null) {
+                    encoderStream.requestKeyFrame();
+                }
+                if (cameraEncodeCallback != null) {
+                    cameraEncodeCallback.onStreamSuccess(camId, urlStream);
+                }
+                isLiveStream = true;
+                isGetResultSetupStream = true;
             }
-            if (cameraEncodeCallback != null) {
-                cameraEncodeCallback.onStreamSuccess(camId, urlStream);
-            }
-            isLiveStream = true;
-            isGetResultSetupStream = true;
         }
 
         @Override
-        public void onStreamError(int camId) {
-            if (cameraEncodeCallback != null) {
-                cameraEncodeCallback.onStreamError(camId);
+        public void onStreamError(int camId_cb) {
+            if (camId_cb == camId) {
+                if (cameraEncodeCallback != null) {
+                    cameraEncodeCallback.onStreamError(camId_cb);
+                }
+                isLiveStream = false;
+                isGetResultSetupStream = true;
             }
-            isLiveStream = false;
-            isGetResultSetupStream = true;
         }
     };
 
-    private final EncoderMain.EncodeCallback encMainCallback = new EncoderMain.EncodeCallback() {
+    private EncoderMain.EncodeCallback encMainCallback = new EncoderMain.EncodeCallback() {
 
         @Override
         public void onEncodeFormatChange(MediaFormat videoFormat) {
@@ -563,26 +657,32 @@ public class CameraEncode {
         }
     };
 
-    private final VideoMuxer.IVideoMuxerCallback videoMuxerCallback = new VideoMuxer.IVideoMuxerCallback() {
+    private VideoMuxer.IVideoMuxerCallback videoMuxerCallback = new VideoMuxer.IVideoMuxerCallback() {
         @Override
-        public void onVideoStartSave(String path, long time) {
-            timeStartVideo = time;
-            if (cameraEncodeCallback != null) {
-                cameraEncodeCallback.onVideoStartSave(camId, path, time);
+        public void onVideoStartSave(int camId_cb, String path, long time) {
+            if (camId_cb == camId) {
+                timeStartVideo = time;
+                if (cameraEncodeCallback != null) {
+                    cameraEncodeCallback.onVideoStartSave(camId, path, time);
+                }
             }
         }
 
         @Override
-        public void onVideoStop() {
-            cameraEncodeCallback.onVideoStop(camId);
+        public void onVideoStop(int camId_cb) {
+            if (camId_cb == camId) {
+                cameraEncodeCallback.onVideoStop(camId);
+            }
         }
 
         @Override
-        public void onStreamSuccess(int camId, String urlStream) {
+        public void onStreamSuccess(int camId_cb, String urlStream) {
+
         }
 
         @Override
-        public void onStreamError(int camId) {
+        public void onStreamError(int camId_cb) {
+
         }
     };
 

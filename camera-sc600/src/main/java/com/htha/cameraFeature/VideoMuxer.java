@@ -302,7 +302,7 @@ public class VideoMuxer {
         catch (IllegalStateException ignored) {
 
         }
-        videoMuxerCallback.onVideoStartSave(fileName, timeStartSave);
+        videoMuxerCallback.onVideoStartSave(camId, fileName, timeStartSave);
         mediaMuxer.start();
         mMuxerStarted = true;
         muxerLock.unlock();
@@ -387,12 +387,12 @@ public class VideoMuxer {
     }
 
     public interface IVideoMuxerCallback {
-        void onVideoStartSave(String path, long time);
+        void onVideoStartSave(int camId_cb, String path, long time);
 
-        void onVideoStop();
+        void onVideoStop(int camId_cb);
 
-        void onStreamSuccess(int camId, String urlStream);
+        void onStreamSuccess(int camId_cb, String urlStream);
 
-        void onStreamError(int camId);
+        void onStreamError(int camId_cb);
     }
 }

@@ -92,4 +92,11 @@ public class NativeCamera {
         }
         return System.currentTimeMillis();
     }
+
+    private native void nDrawInfoBufferInfoToImageSub(long pointer, byte[] imageBuffer_sub);
+    public void drawInfoBufferInfoToImageSub(byte[] imageBuffer_sub){
+        if (nPointer>0){
+            nDrawInfoBufferInfoToImageSub(nPointer, imageBuffer_sub);
+        }
+    }
 }

@@ -255,8 +255,8 @@ public class VideoStream {
 
     public interface IVideoStreamCallback {
 
-        void onStreamSuccess(int camId, String urlStream);
+        void onStreamSuccess(int camId_cb, String urlStream);
 
-        void onStreamError(int camId);
+        void onStreamError(int camId_cb);
     }
 }

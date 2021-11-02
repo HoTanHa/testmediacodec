@@ -32,6 +32,15 @@ public class ImageHttp {
 
     private static final int QUALITY_JPEG = 70;
     private Context mContext;
+    private int mWidth = 1280;
+    private int mHeight = 720;
+    private int mQuality = 50;
+
+    public  void setImageSize(int width, int height, int quality ){
+        mWidth = width;
+        mHeight = height;
+        mQuality = quality;
+    }
 
     public ImageHttp(int serialNumber, String path, Context context) {
         ImageHttp.serialNumber = serialNumber;
@@ -74,9 +83,9 @@ public class ImageHttp {
         mLon = dLon;
         sendBuffer = send;
         byte[] rawImage = new byte[rawImageNV21.length];// Arrays.copyOf(rawImageNV21, rawImageNV21.length);
-        finalRawImage = ImageUtil.YUV420SPtoNV21(rawImageNV21, rawImage, 1280, 720);
+        finalRawImage = ImageUtil.YUV420SPtoNV21(rawImageNV21, rawImage, mWidth, mHeight);
         Thread sendImage = new Thread( () -> {
-            ByteArrayOutputStream imageOS = NV21toJPEG(finalRawImage, 1280, 720, 70);
+            ByteArrayOutputStream imageOS = NV21toJPEG(finalRawImage, mWidth, mHeight, mQuality);
 
             boolean result = false;
             if (sendBuffer) {
@@ -270,14 +279,13 @@ public class ImageHttp {
 
         String pathToOurFile = path;
         String urlServer = RouterURL.getUrlDomainToSendImage() + serialNumber;
-        int bytesRead, bytesAvailable, bufferSize;
+        int bufferSize;
         byte[] buffer;
-        int maxBufferSize = 1024 * 1024;
 
         FileInputStream fileInputStream = new FileInputStream(new File(pathToOurFile));
         bufferSize = fileInputStream.available();
         buffer = new byte[bufferSize];
-        bytesRead = fileInputStream.read(buffer, 0, bufferSize);
+        fileInputStream.read(buffer, 0, bufferSize);
         /******************************************************/
 //        if (USE_ROUTER) {
         URL url = new URL(urlServer);
@@ -320,7 +328,7 @@ public class ImageHttp {
         String body = br.readLine();
         Log.i(TAG, "http_post_image: " + path);
         String log = "Image Storage: Code " + serverResponseCode
-                + "..Body: " + body + "..." + camId + "..." + date;
+                + "..Body: " + body + "..." + camId + "..." + date + "..." + bufferSize;
         Log.i(TAG, "http_post_image_" + log);
         imageSendCallBack.onLogResult(log);
         boolean result = false;
@@ -341,9 +349,7 @@ public class ImageHttp {
         DataInputStream inputStream = null;
 
         String urlServer = RouterURL.getUrlDomainToSendImage() + serialNumber;
-        int bytesRead, bytesAvailable, bufferSize;
-
-        int maxBufferSize = 1024 * 1024;
+        int bufferSize;
 
         byte[] buffer = stream.toByteArray();
         bufferSize = stream.size();
@@ -388,7 +394,7 @@ public class ImageHttp {
         String body = br.readLine();
 
         String log = "Image Buffer: Code " + serverResponseCode
-                + "..Body: " + body + "..." + camId + "..." + date;
+                + "..Body: " + body + "..." + camId + "..." + date + "..." + bufferSize;
         Log.i(TAG, "http_post_image_buffer: " + log);
         imageSendCallBack.onLogResult(log);
 

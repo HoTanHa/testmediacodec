@@ -45,6 +45,7 @@ private:
 	uint8_t *bufferInfoY;
 	uint8_t *bufferMain;
 	uint8_t *bufferStream;
+	uint8_t *bufferInfoStream;
 	std::thread drawStream_thread;
 	std::mutex draw_mutex;
 	std::thread info_thread;
@@ -56,6 +57,7 @@ private:
 	volatile long timeS;
 	ANativeWindow *mMainWindow;
 	ANativeWindow *mStreamWindow;
+	ANativeWindow_Buffer buffer;
 
 
 	static void create_info_in_image(void *vptr_args);
@@ -78,6 +80,8 @@ public:
 	void drawBufferToMainWindow(uint8_t *rawImage);
 
 	long getTimeS();
+
+	void drawInfoToImageBufferSub(uint8_t *rawImage);
 
 	static void setInfoLocation(double sLat, double sLon, double sSpeed);
 

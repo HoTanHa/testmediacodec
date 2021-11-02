@@ -49,7 +49,7 @@ Java_com_htha_mylibcommon_NativeCamera_nClose(JNIEnv *env, jobject thiz, jlong p
 extern "C"
 JNIEXPORT void JNICALL
 Java_com_htha_mylibcommon_NativeCamera_nSetCamId(JNIEnv *env, jobject thiz, jlong pointer,
-													jint cam_id) {
+												 jint cam_id) {
 	// TODO: implement nSetCamId()
 	auto *nCamera = reinterpret_cast<CameraDevice *>(pointer);
 	nCamera->setCamId(cam_id);
@@ -58,7 +58,7 @@ Java_com_htha_mylibcommon_NativeCamera_nSetCamId(JNIEnv *env, jobject thiz, jlon
 extern "C"
 JNIEXPORT void JNICALL
 Java_com_htha_mylibcommon_NativeCamera_nSetInfoLocation(JNIEnv *env, jclass clazz,
-														   jdouble lat, jdouble lon, jdouble speed
+														jdouble lat, jdouble lon, jdouble speed
 ) {
 	// TODO: implement nSetInfoLocation()
 	CameraDevice::setInfoLocation(lat, lon, speed);
@@ -68,8 +68,8 @@ extern "C"
 
 JNIEXPORT void JNICALL
 Java_com_htha_mylibcommon_NativeCamera_nDrawBufferInfoToImage(JNIEnv *env, jobject thiz,
-																 jlong pointer,
-																 jbyteArray image_buffer) {
+															  jlong pointer,
+															  jbyteArray image_buffer) {
 	// TODO: implement nDrawBufferInfoToImage()
 	auto *nCamera = reinterpret_cast<CameraDevice *>(pointer);
 	jbyte *rawImage = env->GetByteArrayElements(image_buffer, NULL);
@@ -82,8 +82,8 @@ Java_com_htha_mylibcommon_NativeCamera_nDrawBufferInfoToImage(JNIEnv *env, jobje
 extern "C"
 JNIEXPORT void JNICALL
 Java_com_htha_mylibcommon_NativeCamera_nSetDriverInfo(JNIEnv *env, jclass clazz,
-														 jstring bs,
-														 jstring gplx) {
+													  jstring bs,
+													  jstring gplx) {
 	// TODO: implement nSetDriverInfo()
 	const char *sBienSo = env->GetStringUTFChars(bs, 0);
 	const char *sGPLX = env->GetStringUTFChars(gplx, 0);
@@ -97,7 +97,7 @@ Java_com_htha_mylibcommon_NativeCamera_nSetDriverInfo(JNIEnv *env, jclass clazz,
 extern "C"
 JNIEXPORT void JNICALL
 Java_com_htha_mylibcommon_NativeCamera_nSetMainSurface(JNIEnv *env, jobject thiz, jlong pointer,
-														  jobject surface) {
+													   jobject surface) {
 	// TODO: implement nSetMainSurface()
 	auto *nCamera = reinterpret_cast<CameraDevice *>(pointer);
 	ANativeWindow *window = surface ? ANativeWindow_fromSurface(env, surface) : NULL;
@@ -107,7 +107,7 @@ Java_com_htha_mylibcommon_NativeCamera_nSetMainSurface(JNIEnv *env, jobject thiz
 extern "C"
 JNIEXPORT void JNICALL
 Java_com_htha_mylibcommon_NativeCamera_nSetStreamSurface(JNIEnv *env, jobject thiz,
-															jlong pointer, jobject surface) {
+														 jlong pointer, jobject surface) {
 	// TODO: implement nSetStreamSurface()
 	auto *nCamera = reinterpret_cast<CameraDevice *>(pointer);
 	ANativeWindow *window = surface ? ANativeWindow_fromSurface(env, surface) : NULL;
@@ -130,3 +130,18 @@ Java_com_htha_mylibcommon_NativeCamera_getTimeS(JNIEnv *env, jobject thiz, jlong
 	auto *nCamera = reinterpret_cast<CameraDevice *>(pointer);
 	return nCamera->getTimeS();
 }
+
+extern "C"
+JNIEXPORT void JNICALL
+Java_com_htha_mylibcommon_NativeCamera_nDrawInfoBufferInfoToImageSub(JNIEnv *env, jobject thiz,
+																	 jlong pointer,
+																	 jbyteArray image_buffer_sub) {
+	// TODO: implement nDrawInfoBufferInfoToImageSub()
+	auto *nCamera = reinterpret_cast<CameraDevice *>(pointer);
+	jbyte *rawImage_sub = env->GetByteArrayElements(image_buffer_sub, NULL);
+
+	nCamera->drawInfoToImageBufferSub((uint8_t *) rawImage_sub);
+
+	env->ReleaseByteArrayElements(image_buffer_sub, rawImage_sub, 0);
+}
+

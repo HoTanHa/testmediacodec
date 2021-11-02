@@ -5,6 +5,9 @@ import android.util.Log;
 import com.htha.cameraFeature.ImageHttp;
 import com.htha.cameraFeature.RouterURL;
 
+import org.json.JSONException;
+import org.json.JSONObject;
+
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
@@ -33,6 +36,9 @@ public class DeviceInfo {
     private double adc = 0.0f;
     private InfoCallback mCallback;
 
+    private String strImei1 = "noSim";
+    private String strImei2 = "noSim";
+
     private DeviceInfo() {
 
     }
@@ -42,6 +48,12 @@ public class DeviceInfo {
             instance = new DeviceInfo();
         }
         return instance;
+    }
+
+    public static void destroyObject() {
+        if (instance != null) {
+            instance = null;
+        }
     }
 
     public void setStreamCamera(int camId, boolean isStream) {
@@ -102,6 +114,21 @@ public class DeviceInfo {
         this.adc = adc;
     }
 
+    public void setImeiSim(String imei1, String imei2) {
+        if (imei1 != null) {
+            strImei1 = imei1;
+        }
+        else {
+            strImei1 = "noSim";
+        }
+        if (imei2 != null) {
+            strImei2 = imei2;
+        }
+        else {
+            strImei2 = "noSim";
+        }
+    }
+
     private void sendHttpInformationDevice() throws IOException {
         if (tempDevice == null || ipDevice_t == null) {
             return;
@@ -127,7 +154,8 @@ public class DeviceInfo {
                 "&cpu=" + cpuPercent_t + "&temp=" + tempDevice +
                 "&key=" + keyStatus_t + "&sd=1&T90=1" +
                 "&cam1def=30,16,60,0&cam2def=30,16,60,0" +
-                "&cam1set=40,20,80,0&cam2set=50,20,80,0 ";
+                "&cam1set=40,20,80,0&cam2set=50,20,80,0 "+
+                "&imei1=" + strImei1 + "&imei2=" + strImei2;;
 
         String sUrl = RouterURL.getUrlSendInfoDevice();
         HttpURLConnection connection;
@@ -146,6 +174,26 @@ public class DeviceInfo {
             br = new BufferedReader(new InputStreamReader(connection.getErrorStream()));
         }
         String body = br.readLine();
+        try {
+            JSONObject jsonRet = new JSONObject(body);
+            if (jsonRet.has("status") && jsonRet.has("cmd")) {
+                int status = jsonRet.getInt("status");
+                String cmd = jsonRet.getString("cmd");
+                if (cmd.startsWith("devicecmd:")) {
+                    if (mCallback != null) {
+                        mCallback.onServerCommand(cmd);
+                    }
+                }
+                else if (cmd.startsWith("setupDevice:")) {
+                    if (mCallback != null) {
+                        mCallback.onServerSetup(cmd);
+                    }
+                }
+            }
+        }
+        catch (JSONException e) {
+            e.printStackTrace();
+        }
         String log = "Send Info Device: code " + serverResponseCode + "..Body: " + body;
         Log.i(TAG, "sendHttpInformationDevice:" + log);
         if (mCallback != null) {
@@ -155,5 +203,9 @@ public class DeviceInfo {
 
     public interface InfoCallback {
         void onResultSendInfo(String log);
+
+        void onServerCommand(String cmd);
+
+        void onServerSetup(String cmd);
     }
 }

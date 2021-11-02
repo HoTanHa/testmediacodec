@@ -10,6 +10,6 @@ public class NativeFunction {
         return nResetUsb(name);
     }
 
-
+    public native static int setGpio(int pin, boolean onOff);
 
 }

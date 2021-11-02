@@ -11,6 +11,7 @@ import android.util.Log;
 import android.view.Surface;
 
 import androidx.annotation.NonNull;
+
 import java.io.IOException;
 import java.nio.ByteBuffer;
 
@@ -32,10 +33,6 @@ public class EncoderMain {
 
     private boolean isVideoFormatChange;
     private MediaFormat mediaFormat = null;
-
-
-    private HandlerThread backgroundThread;
-    private Handler backgroundHandler;
 
     public EncoderMain() {
         configure();
@@ -59,13 +56,10 @@ public class EncoderMain {
 
     private synchronized void configure() {
 
-        backgroundThread = new HandlerThread("CodecStream");
-        backgroundThread.start();
-        backgroundHandler = new Handler(backgroundThread.getLooper());
-
         try {
             mediaCodec = MediaCodec.createEncoderByType(ENCODE_VIDEO_TYPE);
-        } catch (IOException e) {
+        }
+        catch (IOException e) {
             e.printStackTrace();
         }
         if (mediaCodec == null) {
@@ -76,8 +70,6 @@ public class EncoderMain {
 
     public void start() {
         mediaCodec.start();
-//        encodeThread.setPriority(Thread.MAX_PRIORITY - 1);
-//        encodeThread.start();
     }
 
     private void configureMediaCodecEncoder() {
@@ -97,7 +89,7 @@ public class EncoderMain {
         mediaCodec.configure(format, null, null, MediaCodec.CONFIGURE_FLAG_ENCODE);
         // create Surface encode
         encodeSurface = mediaCodec.createInputSurface();
-        mediaCodec.setCallback(callback, backgroundHandler);
+        mediaCodec.setCallback(callback);
     }
 
     private MediaCodec.Callback callback = new MediaCodec.Callback() {
@@ -108,10 +100,11 @@ public class EncoderMain {
 
         @Override
         public void onOutputBufferAvailable(@NonNull MediaCodec codec, int index, @NonNull MediaCodec.BufferInfo info) {
-                ByteBuffer outputBuffer = codec.getOutputBuffer(index);
-                encodeCallback.onDataVideoEncodeOutput(outputBuffer, info);
+            ByteBuffer outputBuffer = codec.getOutputBuffer(index);
+            encodeCallback.onDataVideoEncodeOutput(outputBuffer, info);
+            if (mediaCodec != null) {
                 mediaCodec.releaseOutputBuffer(index, false);
-
+            }
         }
 
         @Override
@@ -136,15 +129,18 @@ public class EncoderMain {
                 int outputBufferId = mediaCodec.dequeueOutputBuffer(mBufferInfo, 10000);
 
                 if (outputBufferId == MediaCodec.INFO_TRY_AGAIN_LATER) {
-                } else if (outputBufferId == MediaCodec.INFO_OUTPUT_FORMAT_CHANGED) {
+                }
+                else if (outputBufferId == MediaCodec.INFO_OUTPUT_FORMAT_CHANGED) {
                     if (!isVideoFormatChange) {
                         mediaFormat = mediaCodec.getOutputFormat();
                         isVideoFormatChange = true;
                         encodeCallback.onEncodeFormatChange(mediaFormat);
                     }
-                } else if (outputBufferId < 0) {
+                }
+                else if (outputBufferId < 0) {
                     Log.d(TAG, "Thread Encode run: dequeueOutputBuffer does not know value.");
-                } else {
+                }
+                else {
                     ByteBuffer outputBuffer = mediaCodec.getOutputBuffer(outputBufferId);
 
                     mBufferInfo.presentationTimeUs = getPTSUs();
@@ -175,20 +171,11 @@ public class EncoderMain {
         encodeRunning = false;
         try {
             encodeThread.join();
-        } catch (InterruptedException e) {
+        }
+        catch (InterruptedException e) {
             e.printStackTrace();
         }
         releaseEncoder();
-
-        backgroundThread.quitSafely();
-        try {
-            backgroundThread.join();
-            backgroundThread = null;
-            backgroundHandler = null;
-        }
-        catch (InterruptedException e) {
-            Log.e(TAG, "stopBackgroundThread: " + e.getMessage());
-        }
     }
 
     public void requestKeyFrame() {
@@ -207,9 +194,6 @@ public class EncoderMain {
 
     private void releaseEncoder() {
         if (mediaCodec != null) {
-//            mediaCodec.flush();
-//            mediaCodec.stop();
-//            mediaCodec.release();
             if (encodeSurface != null) {
                 encodeSurface.release();
             }

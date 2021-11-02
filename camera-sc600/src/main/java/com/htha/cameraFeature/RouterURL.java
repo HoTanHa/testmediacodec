@@ -76,7 +76,7 @@ public class RouterURL {
             return URL_DEVICE_TEST;
         }
         else {
-            return URL_DEVICE_BM;
+            return URL_DEVICE_AD;
         }
     }
 }

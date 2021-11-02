@@ -1,13 +1,21 @@
 package com.htha.camera_sc600;
 
+import android.content.Context;
 import android.util.Log;
 
+import com.alibaba.fastjson.JSON;
+import com.htha.mylibcommon.CommonFunction;
 import com.htha.playback.PlaybackStream;
 import com.quectel.qcarapi.cb.IQCarCamInStatusCB;
 import com.quectel.qcarapi.helper.QCarCamInDetectHelper;
 import com.quectel.qcarapi.stream.QCarCamera;
 import com.quectel.qcarapi.util.QCarLog;
 
+import java.io.BufferedWriter;
+import java.io.File;
+import java.io.FileOutputStream;
+import java.io.FileWriter;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Map;
@@ -16,29 +24,62 @@ import java.util.concurrent.ConcurrentHashMap;
 public final class CameraSC600 implements IQCarCamInStatusCB {
     private static final String TAG = "CameraSC600";
     private static CameraSC600 cameraSC600_instance = null;
-    private static boolean isRunning = false;
+    private static volatile boolean isRunning = false;
     private static Thread camSC600Thread;
     private static final int USE_BUS_CSI = 2;
-    private static int CSI_NUMS[];
-    private static Map<Integer, QCarCamera> qCarCameraMap = new ConcurrentHashMap<Integer, QCarCamera>();
+    private static int[] CSI_NUMS;
+    private static final Map<Integer, QCarCamera> qCarCameraMap = new ConcurrentHashMap<Integer, QCarCamera>();
 
-    private static ArrayList<CamInfo> listCamInfo = new ArrayList<>();
+    private static final ArrayList<CamInfo> listCamInfo = new ArrayList<>();
 
     private QCarCamInDetectHelper detectInsert;
     private boolean[] isInsertCam;
+    private static final boolean[] typeOfCamera = {true, true, true, true};
+    private boolean isChange = false;
+    private static String mPathConfig = null;
+
+    public static void setPathConfig(String pathConfig) {
+        mPathConfig = pathConfig;
+    }
+
+    private int readConfig() {
+        int type = 0;
+        if (new File(mPathConfig).exists()) {
+            String sType = CommonFunction.readFile(mPathConfig);
+            type = CommonFunction.parseStringToInt(sType);
+        }
+        else {
+            type = 15;
+        }
+        for (int i = 0; i < 4; i++) {
+            typeOfCamera[i] = (type & (0b0001 << i)) > 0;
+        }
+        return type;
+    }
+
+    private void saveConfig() {
+        int inputType = 0;
+        for (int i = 0; i < 4; i++) {
+            if (typeOfCamera[i]) {
+                inputType += (0b0001 << i);
+            }
+        }
+        CommonFunction.writeToNewFile(mPathConfig, Integer.toString(inputType));
+    }
 
     static {
         System.loadLibrary("mmqcar_qcar_jni");
     }
 
     private CameraSC600() {
-        if (isRunning == true) {
+        if (isRunning) {
             return;
         }
 
         isRunning = true;
+        isError = false;
         QCarLog.setTagLogLevel(Log.INFO);
-        QCarLog.setModuleLogLevel(QCarLog.LOG_MODULE_APP);
+//        QCarLog.setModuleLogLevel(QCarLog.LOG_MODULE_APP);
 
         CSI_NUMS = new int[USE_BUS_CSI];
         if (USE_BUS_CSI == 1) {
@@ -69,10 +110,12 @@ public final class CameraSC600 implements IQCarCamInStatusCB {
             listCamInfo.add(new CamInfo(SC600Params.CameraId.CAMERA2,
                     SC600Params.CSI_NUM.CAMERA_CSI0, SC600Params.InputChannel.CHANNEL_1));
             listCamInfo.add(new CamInfo(SC600Params.CameraId.CAMERA3,
-                    SC600Params.CSI_NUM.CAMERA_CSI2, SC600Params.InputChannel.CHANNEL_2));
+                    SC600Params.CSI_NUM.CAMERA_CSI2, SC600Params.InputChannel.CHANNEL_0));
             listCamInfo.add(new CamInfo(SC600Params.CameraId.CAMERA4,
-                    SC600Params.CSI_NUM.CAMERA_CSI2, SC600Params.InputChannel.CHANNEL_3));
+                    SC600Params.CSI_NUM.CAMERA_CSI2, SC600Params.InputChannel.CHANNEL_1));
         }
+
+        int typeConfig = readConfig();
 
         for (int value : CSI_NUMS) {
 
@@ -90,12 +133,12 @@ public final class CameraSC600 implements IQCarCamInStatusCB {
                     }
                     else {
                         numCam = 2;
-                        type = SC600Params.InputType.CSI0_CH0CH1CH2CH3_1080P;
+                        type = SC600Params.InputType.CSI0_CH0CH1CH2CH3_0000 + typeConfig;
                     }
                 }
                 else {//if (value == SC600Params.CSI_NUM.CAMERA_CSI2) {
                     numCam = 2;
-                    type = SC600Params.InputType.CSI2_ADSUN;
+                    type = SC600Params.InputType.CSI2_CH0CH1_00 + (typeConfig >> 2);
                 }
                 Log.d(TAG, "CameraSC600:  csiNum = " + value + " inputNum = " +
                         numCam + " inputType = " + type);
@@ -122,14 +165,14 @@ public final class CameraSC600 implements IQCarCamInStatusCB {
 
         isInsertCam = new boolean[4];
         Arrays.fill(isInsertCam, false);
-        if (USE_BUS_CSI == 1) {
-            addCameraDetect(SC600Params.CSI_NUM.CAMERA_CSI0, 4);
-        }
-        else {
-            addCameraDetect(SC600Params.CSI_NUM.CAMERA_CSI0, 2);
-            addCameraDetect(SC600Params.CSI_NUM.CAMERA_CSI2, 2);
-        }
-        detectInsert.startDetectThread();
+//        if (USE_BUS_CSI == 1) {
+//            addCameraDetect(SC600Params.CSI_NUM.CAMERA_CSI0, 4);
+//        }
+//        else {
+//            addCameraDetect(SC600Params.CSI_NUM.CAMERA_CSI0, 4);
+////            addCameraDetect(SC600Params.CSI_NUM.CAMERA_CSI2, 4);
+//        }
+//        detectInsert.startDetectThread();
 
     }
 
@@ -166,6 +209,35 @@ public final class CameraSC600 implements IQCarCamInStatusCB {
         }
     }
 
+    public void getCameraDetect() {
+        QCarCamera qCarCamera = getQCarCamera(SC600Params.CSI_NUM.CAMERA_CSI0);
+        boolean[] arrInput = new boolean[8];
+        assert qCarCamera != null;
+        int ret = qCarCamera.detectCamInputStatus(arrInput, 8);
+        if (ret >= 0) {
+            System.arraycopy(arrInput, 0, isInsertCam, 0, 4);
+            for (int i = 0; i < 4; i++) {
+                if (isInsertCam[i]) {
+                    if (arrInput[4 + i] != typeOfCamera[i]) {
+                        isChange = true;
+                        Log.d(TAG, "getCameraDetect: camera is Changed.." + i);
+                    }
+                    typeOfCamera[i] = arrInput[4 + i];
+                }
+            }
+        }
+        else {
+            isError = true;
+        }
+    }
+
+    public boolean isChangeCamera() {
+        return isChange;
+    }
+
+    public static boolean isCamSC600Running() {
+        return isRunning;
+    }
 
     public static synchronized CameraSC600 getInstance() {
         if (cameraSC600_instance == null) {
@@ -175,12 +247,30 @@ public final class CameraSC600 implements IQCarCamInStatusCB {
     }
 
     public void stop() {
+
+//        detectInsert = QCarCamInDetectHelper.getInstance(this);
+//        detectInsert.clearInputParam();
+//        detectInsert.stopDetectThread();
+        QCarCamera qCarCamera = getQCarCamera(SC600Params.CSI_NUM.CAMERA_CSI0);
+        qCarCamera.cameraClose();
+//        qCarCamera.cameraForceCloseHw();
+        qCarCamera.release();
+        if (USE_BUS_CSI == 2) {
+            QCarCamera qCarCamera1 = getQCarCamera(SC600Params.CSI_NUM.CAMERA_CSI2);
+            assert qCarCamera1 != null;
+            qCarCamera1.cameraClose();
+//            qCarCamera1.cameraForceCloseHw();
+            qCarCamera1.release();
+        }
+        qCarCameraMap.clear();
+        saveConfig();
+    }
+
+    public static void clearObject() {
         isRunning = false;
         cameraSC600_instance = null;
-        qCarCameraMap.clear();
-        detectInsert.clearInputParam();
-        detectInsert.stopDetectThread();
     }
+
 
     public boolean isCamInsert(int camId) {
         if (camId >= 0 && camId < 4) {
@@ -189,7 +279,11 @@ public final class CameraSC600 implements IQCarCamInStatusCB {
         return false;
     }
 
-    private int count = 0;
+    public static boolean isCameraError() {
+        return isError;
+    }
+
+    private static volatile boolean isError = false;
 
     @Override
     public void statusCB(int csi_num, int channel_num, int detectResult, boolean isInsert) {
@@ -197,16 +291,11 @@ public final class CameraSC600 implements IQCarCamInStatusCB {
             if (channel_num < isInsertCam.length) {
                 if (isInsertCam[channel_num] != isInsert) {
                     isInsertCam[channel_num] = isInsert;
-                    Log.i(TAG, "csi_num = " + csi_num + ", channel_num = " + channel_num + ", isInsert = " + isInsert);
                 }
             }
         }
         else {
-            count++;
-            if (count > 10) {
-                count = 0;
-                Log.d(TAG, "statusCB: i2c error....");
-            }
+            isError = true;
         }
     }
 }

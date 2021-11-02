@@ -13,13 +13,37 @@ public class SC600Params {
 
         /**********N4***************/
         /*CSI1 config choose*/
-        public static final int  CSI1_CH0CH1CH2CH3_1080P_N4 = 4;
-        public static final int  CSI1_CH0CH1CH2CH3_720P_N4 = 5;
+        public static final int CSI1_CH0CH1CH2CH3_1080P_N4 = 4;
+        public static final int CSI1_CH0CH1CH2CH3_720P_N4 = 5;
 
         /**********ADSUN**************/
-        public static final int  CSI2_ADSUN = 6;
-        public static final int  CSI0_ADSUN_720P720P720P720P = 7;
-        public static final int  INPUT_TYPE_MUX = 8;
+
+        public static final int CSI0_CH0CH1CH2CH3_0000 = 6;
+        public static final int CSI0_CH0CH1CH2CH3_1000 = 7;
+        public static final int CSI0_CH0CH1CH2CH3_0100 = 8;
+        public static final int CSI0_CH0CH1CH2CH3_1100 = 9;
+
+        public static final int CSI0_CH0CH1CH2CH3_0010 = 10;
+        public static final int CSI0_CH0CH1CH2CH3_1010 = 11;
+        public static final int CSI0_CH0CH1CH2CH3_0110 = 12;
+        public static final int CSI0_CH0CH1CH2CH3_1110 = 13;
+
+        public static final int CSI0_CH0CH1CH2CH3_0001 = 14;
+        public static final int CSI0_CH0CH1CH2CH3_1001 = 15;
+        public static final int CSI0_CH0CH1CH2CH3_0101 = 16;
+        public static final int CSI0_CH0CH1CH2CH3_1101 = 17;
+
+        public static final int CSI0_CH0CH1CH2CH3_0011 = 18;
+        public static final int CSI0_CH0CH1CH2CH3_1011 = 19;
+        public static final int CSI0_CH0CH1CH2CH3_0111 = 20;
+        public static final int CSI0_CH0CH1CH2CH3_1111 = 21;
+
+        public static final int CSI2_CH0CH1_00 = 22;
+        public static final int CSI2_CH0CH1_10 = 23;
+        public static final int CSI2_CH0CH1_01 = 24;
+        public static final int CSI2_CH0CH1_11 = 25;
+        
+        public static final int INPUT_TYPE_MUX = 26;
     }
 
     public class InputChannel {

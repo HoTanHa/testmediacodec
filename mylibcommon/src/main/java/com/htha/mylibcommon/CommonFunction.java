@@ -1,12 +1,17 @@
 package com.htha.mylibcommon;
 
+import android.util.Log;
+
 import java.io.BufferedReader;
+import java.io.File;
+import java.io.FileOutputStream;
 import java.io.FileReader;
 import java.io.IOException;
 import java.util.Calendar;
 import java.util.Date;
 
 public class CommonFunction {
+    private static final String TAG = "CommonFunction";
     public static String readFile(String path) {
         String a = "";
         try {
@@ -52,5 +57,37 @@ public class CommonFunction {
         s_date[6] = 0;                 //null
         String sDate = new String(s_date, 0, 6);
         return sDate;
+    }
+
+    public static int parseStringToInt(String sInt) {
+        int num = 0;
+        byte[] sNumByte = sInt.getBytes();
+        for (int i = 0; i < sNumByte.length; i++) {
+            if (sNumByte[i] < 0x40 && sNumByte[i] >= 0x30) {
+                num = num * 10 + (sNumByte[i] - 0x30);
+            }
+            else {
+                break;
+            }
+        }
+        return num;
+    }
+
+    public static void writeToNewFile(String path, String content){
+        try {
+            File myFoo = new File(path);
+            FileOutputStream fooStream = new FileOutputStream(myFoo, false); // true to append
+            // false to overwrite.
+            byte[] myBytes = content.getBytes();
+            fooStream.write(myBytes);
+            fooStream.close();
+        }
+        catch (Exception e) {
+            Log.e(TAG, "writeToNewFile: " + e.getMessage());
+        }
+    }
+    public static String removeSpecialStringJson(String str){
+        String s = str.replaceAll("[^a-zA-Z0-9\"]", "");
+        return s;
     }
 }
