@@ -83,6 +83,8 @@ public:
 
 	void drawInfoToImageBufferSub(uint8_t *rawImage);
 
+	void close();
+
 	static void setInfoLocation(double sLat, double sLon, double sSpeed);
 
 	static void setDriverInfo(char *sBsXe, char *sGPLX);

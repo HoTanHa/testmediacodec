@@ -15,6 +15,12 @@ android {
 //        testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         testInstrumentationRunner "android.support.test.runner.AndroidJUnitRunner"
         consumerProguardFiles "consumer-rules.pro"
+
+        externalNativeBuild {
+            cmake {
+                cppFlags "-std=c++11"
+            }
+        }
     }
 
     buildTypes {
@@ -32,6 +38,8 @@ android {
             path file('CMakeLists.txt')
         }
     }
+
+    ndkVersion '21.1.6352462'
 }
 
 dependencies {

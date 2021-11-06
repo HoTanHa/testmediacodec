@@ -6,17 +6,23 @@ import android.os.StatFs;
 import android.util.Base64;
 import android.util.Log;
 
+import com.htha.cameraFeature.ShareImage;
+
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 
+import java.io.ByteArrayInputStream;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.IOException;
+import java.io.InputStream;
+import java.lang.reflect.Array;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.Date;
 import java.util.HashMap;
@@ -29,8 +35,8 @@ import fi.iki.elonen.NanoHTTPD;
 
 public final class HttpServer extends NanoHTTPD {
     private static final String TAG = "HttpServer";
-    private static final int PORT = 8080;
-    private static final int NUM_CAM = 4;
+    private static final int PORT = 8082;
+    public static final int NUM_CAM = 4;
     private String pathStorage = null;
     private static final int CAM_ID_1 = 0;
     private static final int CAM_ID_2 = 1;
@@ -43,6 +49,10 @@ public final class HttpServer extends NanoHTTPD {
     private static final String folderHttp = "/storage/emulated/0/web";
 //    private static final String folderHttp = "/system/etc/web_hop_chuan";
 
+    private boolean[] isRequestStreamHotspot;
+    private boolean[] isStreamingHotspot;
+    private String[] ipStreamHotspot;
+    private static boolean isRequestSetupCamera = false;
     private long sdCardSize = 0;
     private long sdCardFreeSpace = 0;
 
@@ -58,8 +68,16 @@ public final class HttpServer extends NanoHTTPD {
 
     private long minTimeVideo, maxTimeVideo;
 
+    public static boolean isRunning() {
+        return isRunning && isRequestSetupCamera;
+    }
+
     public HttpServer(Context context, String pathSdCard, int sn, int timeoutS, ServerCallback callback) {
         super(PORT);
+
+        if (isRunning) {
+            return;
+        }
         this.mContext = context;
         this.serialNumber = sn;
         this.TIMEOUT_SERVER = timeoutS * 1000;
@@ -85,6 +103,13 @@ public final class HttpServer extends NanoHTTPD {
         else {
             Log.d(TAG, "HttpServer: Path sdCard is null..!");
         }
+
+        isRequestStreamHotspot = new boolean[NUM_CAM];
+        Arrays.fill(isRequestStreamHotspot, false);
+        isStreamingHotspot = new boolean[NUM_CAM];
+        Arrays.fill(isStreamingHotspot, false);
+        ipStreamHotspot = new String[NUM_CAM];
+        isRequestSetupCamera = false;
 
         timeCheckTimeout = System.currentTimeMillis();
         timeLastRequestMs = timeCheckTimeout;
@@ -115,7 +140,7 @@ public final class HttpServer extends NanoHTTPD {
                     }
                 }
             }
-            maxTimeVideo+=3600;
+            maxTimeVideo += 3600;
 
             while (isRunning) {
                 timeCheckTimeout = System.currentTimeMillis();
@@ -127,8 +152,15 @@ public final class HttpServer extends NanoHTTPD {
                     break;
                 }
 
+                for (int i = 0; i < NUM_CAM; i++) {
+                    if (isRequestStreamHotspot[i]) {
+                        isRequestStreamHotspot[i] = false;
+                        mCallback.onRequestStreamRtp(ipStreamHotspot[i], i);
+                    }
+                }
+
                 try {
-                    Thread.sleep(10000);
+                    Thread.sleep(1000);
                 }
                 catch (InterruptedException e) {
                     e.printStackTrace();
@@ -142,6 +174,7 @@ public final class HttpServer extends NanoHTTPD {
     public void stop() {
         super.stop();
         isRunning = false;
+        isRequestSetupCamera = false;
         if (serverThread != null && serverThread.isAlive()) {
             try {
                 serverThread.join();
@@ -205,14 +238,122 @@ public final class HttpServer extends NanoHTTPD {
             JSONObject object = getVideoIntervalGroup();
             return newFixedLengthResponse(Response.Status.OK, "application/json", object.toString());
         }
-        else if (uri.equals("/getLimitVideo")){
+        else if (uri.equals("/setupCamera")){
+            String pathFile = folderHttp + "/setup.html";
+            FileInputStream fis = null;
+            File file = new File(pathFile);
+            try {
+                fis = new FileInputStream(file);
+            }
+            catch (FileNotFoundException e) {
+                return responseNotFound();
+            }
+            String type = pathFile.substring(pathFile.lastIndexOf(".") + 1).toLowerCase();
+
+            if (type.isEmpty()) {
+                return newFixedLengthResponse(Response.Status.OK, MIME_PLAINTEXT, fis, file.length());
+            }
+            String mineType = null;
+            try {
+                mineType = NanoHTTPD.mimeTypes().get(type);
+            }
+            catch (Exception e) {
+                e.printStackTrace();
+            }
+            if (mineType == null) {
+                return newFixedLengthResponse(Response.Status.OK, MIME_PLAINTEXT, fis, file.length());
+            }
+            Response response = newFixedLengthResponse(Response.Status.OK, MIME_TYPES.get(type), fis, file.length());
+            response.closeConnection(true);
+            return response;
+        }
+        else if (uri.equals("/api/getSerial")) {
+            try {
+                JSONObject jsonObject = new JSONObject();
+                jsonObject.put("status", 1);
+                jsonObject.put("serial", serialNumber);
+                return newFixedLengthResponse(Response.Status.OK, "application/json", jsonObject.toString());
+            }
+            catch (JSONException e) {
+            }
+            return responseNotFound();
+        }
+        else if (uri.equals("/api/startSetupCamera")) {
+            isRequestSetupCamera = true;
+            return newFixedLengthResponse(Response.Status.OK, MIME_PLAINTEXT, "OK!");
+        }
+        else if (uri.equals("/api/getNumberCamera")){
+            try {
+                JSONObject jsonObject = new JSONObject();
+                jsonObject.put("status", 1);
+                jsonObject.put("numCam", NUM_CAM);
+                return newFixedLengthResponse(Response.Status.OK, "application/json", jsonObject.toString());
+            }
+            catch (JSONException e) {
+            }
+            return responseNotFound();
+        }
+        else if (uri.equals("/api/getImageStream")) {
+            int cam = 0;
+            if (param.containsKey("camera")) {
+                try {
+                    cam = Integer.parseInt(param.get("camera").get(0));
+                    byte[] image = ShareImage.getInstance().getImageByte(cam);
+                    if (image != null && image.length != 0) {
+                        InputStream targetStream = new ByteArrayInputStream(image);
+                        return newChunkedResponse(Response.Status.OK,
+                                "image/jpeg",
+                                targetStream);
+                    }
+                    else {
+                        return responseNotFound();
+                    }
+                }
+                catch (NumberFormatException exception) {
+                    return responseParamError();
+                }
+            }
+            return responseParamError();
+        }
+        else if (uri.equals("/streamHotspot")) {
+            int cam = 0;
+            if (param.containsKey("camera")) {
+                try {
+                    cam = Integer.parseInt(param.get("camera").get(0));
+                    if (cam >= 0 && cam < NUM_CAM) {
+                        int port = 9998 + cam * 2;
+                        String cmd = "udpsrc port=" + port
+                                + " ! application/x-rtp, media=video, clock-rate=90000, encoding-name=H264, payload=96 "
+                                + "! rtph264depay ! video/x-h264, stream-format=byte-stream, alignment=au "
+                                + "! avdec_h264 ! videoconvert ! autovideosink sync=false";
+                        JSONObject jsonObject = new JSONObject();
+                        jsonObject.put("status", 1);
+                        jsonObject.put("description", "stream over hotspot");
+                        jsonObject.put("camera", cam);
+                        jsonObject.put("cmd", cmd);
+
+                        ipStreamHotspot[cam] = ipAddress;
+                        isRequestStreamHotspot[cam] = true;
+                        return newFixedLengthResponse(Response.Status.OK, "application/json", jsonObject.toString());
+                    }
+                    else {
+                        return responseParamError();
+                    }
+                }
+                catch (NumberFormatException | JSONException exception) {
+                    return responseParamError();
+                }
+            }
+            return responseParamError();
+        }
+        else if (uri.equals("/getLimitVideo")) {
 
             JSONObject limit = new JSONObject();
             try {
                 limit.put("start", minTimeVideo);
                 limit.put("end", maxTimeVideo);
             }
-            catch (JSONException e){
+            catch (JSONException e) {
             }
             return newFixedLengthResponse(Response.Status.OK, "application/json", limit.toString());
         }
@@ -1225,5 +1366,7 @@ public final class HttpServer extends NanoHTTPD {
 
     public interface ServerCallback {
         void onTimeout();
+
+        void onRequestStreamRtp(String host, int camId);
     }
 }

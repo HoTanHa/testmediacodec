@@ -43,6 +43,7 @@ JNIEXPORT void JNICALL
 Java_com_htha_mylibcommon_NativeCamera_nClose(JNIEnv *env, jobject thiz, jlong pointer) {
 	// TODO: implement nClose()
 	auto *nCamera = reinterpret_cast<CameraDevice *>(pointer);
+	nCamera->close();
 	delete nCamera;
 }
 

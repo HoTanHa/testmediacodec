@@ -52,6 +52,7 @@ struct rtmpmuxer_t {
 	struct rtmp_buffer_queue *head_buff;
 	pthread_mutex_t rtmp_mutex;
 	pthread_t tid;
+	int frameCount;
 	int quit;
 };
 
@@ -65,10 +66,12 @@ void add_buffer_to_queue(struct rtmpmuxer_t *muxer, uint8_t *buffer, int length,
 			muxer->head_buff->length = (uint32_t) length;
 			muxer->head_buff->timestamp = (int) timestamp;
 			muxer->head_buff->next = NULL;
+			muxer->frameCount = 1;
 		}
 		else {
 			free(muxer->head_buff);
 			muxer->head_buff = NULL;
+			muxer->frameCount = 0;
 		}
 	}
 	else {
@@ -83,6 +86,7 @@ void add_buffer_to_queue(struct rtmpmuxer_t *muxer, uint8_t *buffer, int length,
 			current->next->length = (uint32_t) length;
 			current->next->timestamp = (int) timestamp;
 			current->next->next = NULL;
+			muxer->frameCount++;
 		}
 		else {
 			free(current->next);
@@ -101,6 +105,7 @@ void free_head_queue(struct rtmpmuxer_t *muxer) {
 	muxer->head_buff = current->next;
 	free(current->buffer);
 	free(current);
+	muxer->frameCount--;
 	pthread_mutex_unlock(&(muxer->rtmp_mutex));
 }
 
@@ -116,6 +121,7 @@ void free_queue(struct rtmpmuxer_t *muxer) {
 		free(temp);
 	}
 	muxer->head_buff = NULL;
+	muxer->frameCount = 0;
 	pthread_mutex_unlock(&(muxer->rtmp_mutex));
 }
 
@@ -197,9 +203,9 @@ int rtmp_open_for_write(RTMP *rtmp, char *url, uint32_t video_width, uint32_t vi
 		int output_len = body_len + FLV_TAG_HEAD_LEN + FLV_PRE_TAG_LEN;
 
 		send_buffer[offset++] = 0x12;                      //tagtype scripte
-		send_buffer[offset++] = (uint8_t) (body_len >> 16); //data len
-		send_buffer[offset++] = (uint8_t) (body_len >> 8);  //data len
-		send_buffer[offset++] = (uint8_t) (body_len);       //data len
+		send_buffer[offset++] = (uint8_t)(body_len >> 16); //data len
+		send_buffer[offset++] = (uint8_t)(body_len >> 8);  //data len
+		send_buffer[offset++] = (uint8_t)(body_len);       //data len
 		send_buffer[offset++] = 0;                         //time stamp
 		send_buffer[offset++] = 0;                         //time stamp
 		send_buffer[offset++] = 0;                         //time stamp
@@ -287,7 +293,7 @@ int rtmp_send_stream_h264(RTMP *rtmp, uint8_t *bufferFrame_NAL, uint32_t n_NAL, 
 	int type = bufferFrame_NAL[IDX_NAL_TYPE] & 0x1f;
 	unsigned char *body;
 	uint32_t len = n_NAL - IDX_NAL_TYPE;
-	size_t size = (size_t) (RTMP_HEAD_SIZE + len + 9);
+	size_t size = (size_t)(RTMP_HEAD_SIZE + len + 9);
 	RTMPPacket *packet = (RTMPPacket *) malloc(size);
 	if (packet == NULL) {
 		LOGD("size malloc fail: size:%zu..len:%u..%u..%zu", size, len, n_NAL, RTMP_HEAD_SIZE);
@@ -415,13 +421,15 @@ void thread_send_rtmp(void *arg) {
 				time2 = time(NULL);
 			}
 //			LOG("size Frame: ...%ld..%ld...%d...%d", time1, time2, res, muxer->head_buff->length);
-			timeSend = time2 - time1;
-			if (timeSend > 2) {
-				free_queue(muxer);
-			}
-			else {
-				free_head_queue(muxer);
-			}
+//			timeSend = time2 - time1;
+//			if (timeSend > 2) {
+//				free_queue(muxer);
+//			}
+//			else {
+//				free_head_queue(muxer);
+//			}
+
+			free_head_queue(muxer);
 		}
 		usleep(2000);
 	}
@@ -495,8 +503,8 @@ Java_com_htha_rtmpClient_RTMPMuxer_nWriteVideo(JNIEnv *env, jobject thiz, jlong 
 
 	jint result = 0;
 	if (data != NULL) {
-		add_buffer_to_queue(muxer, (uint8_t *) &data[offset], length, timestamp);
-		(*env)->ReleaseByteArrayElements(env, data_, data, JNI_ABORT);
+		add_buffer_to_queue(muxer, (uint8_t * ) & data[offset], length, timestamp);
+		(*env)->ReleaseByteArrayElements(env, data_, data, 0);
 	}
 
 	return result;
@@ -530,4 +538,14 @@ Java_com_htha_rtmpClient_RTMPMuxer_nativeAlloc(JNIEnv *env, jobject thiz) {
 	muxer->quit = 0;
 
 	return (jlong) muxer;
+}
+
+jboolean
+Java_com_htha_rtmpClient_RTMPMuxer_nCheckHanging(JNIEnv *env, jobject thiz, jlong rtmp_pointer) {
+	// TODO: implement nCheckHanging()
+	struct rtmpmuxer_t *muxer = (struct rtmpmuxer_t *) rtmp_pointer;
+	if (muxer->frameCount > 50) {
+		return true;
+	}
+	return false;
 }

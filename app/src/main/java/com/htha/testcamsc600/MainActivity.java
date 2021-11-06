@@ -45,7 +45,7 @@ public class MainActivity extends AppCompatActivity {
     //    private static String LINK_HOST_STREAM = "rtmp://192.168.1.2:1935/live/";
     private static String LINK_HOST_STREAM = "rtmp://192.168.20.101:1935/live/";
     //    private static String LINK_HOST_STREAM = "rtmp://125.212.211.209:1935/live/";
-    private static String LINK_HOST = "192.168.1.2";
+    private static String LINK_HOST = "192.168.20.101";
     private static String LINK_STREAM1 = LINK_HOST_STREAM + "testcamera1";
     private static String LINK_STREAM2 = LINK_HOST_STREAM + "testcamera2";
     private static String LINK_STREAM3 = LINK_HOST_STREAM + "testcamera3";
@@ -156,7 +156,10 @@ public class MainActivity extends AppCompatActivity {
 
 //        TextView tv = (TextView) findViewById(R.id.sample_text);
 //        tv.setText(stringFromJNI());
+
         threadTest.start();
+//        threadGst.start();
+
 
         mTimer.schedule(new TimerTask() {
             @Override
@@ -170,7 +173,9 @@ public class MainActivity extends AppCompatActivity {
                 }
                 count++;
                 if (count % 20 == 0) {
-                    if (cameraThread!=null){ cameraThread.setInfoDeviceStatus(90.0f, "70", "12", "192.168.1.7", 1, 12.2f);}
+                    if (cameraThread != null) {
+                        cameraThread.setInfoDeviceStatus(90.0f, "70", "12", "192.168.1.7", 1, 12.2f);
+                    }
                     cameraThread.sendInfo();
                 }
             }
@@ -188,7 +193,7 @@ public class MainActivity extends AppCompatActivity {
     CameraThread.ICameraThreadCallback cameraThreadCallback = new CameraThread.ICameraThreadCallback() {
         @Override
         public void onCameraConnect(int camId) {
-            Log.e(TAG, "onCameraConnect: aaaaaaaaaaaaa" + camId );
+            Log.e(TAG, "onCameraConnect: aaaaaaaaaaaaa" + camId);
         }
 
         @Override
@@ -198,12 +203,12 @@ public class MainActivity extends AppCompatActivity {
 
         @Override
         public void onStreamSuccess(int camId, String url) {
-
+            Log.d(TAG, "onStreamSuccess: " + camId);
         }
 
         @Override
         public void onStreamOff(int camId) {
-
+            Log.d(TAG, "onStreamOff: " + camId);
         }
 
         @Override
@@ -231,6 +236,20 @@ public class MainActivity extends AppCompatActivity {
         }
     });
 
+//    private static Pipeline pipeline;
+//
+//    private Thread threadGst = new Thread(new Runnable() {
+//        @Override
+//        public void run() {
+//            Gst.init(Version.BASELINE, "BasicPipeline");
+//            String strPipeline = "filesrc location=\"/storage/4571-18F3/cam1/cam1_20211102_13_1635832800/VID_1_20211102_130830.mp4\" "
+//                    + " ! decodebin ! x264enc ! queue ! tcpserversink host=127.0.0.1 port=8082";
+//            pipeline = (Pipeline) Gst.parseLaunch("videotestsrc ! autovideosink");
+//
+//            pipeline.play();
+//            Gst.main();
+//        }
+//    });
 
     private Timer timeWebSocket;
 
@@ -394,9 +413,11 @@ public class MainActivity extends AppCompatActivity {
                     }
                     break;
                 case R.id.button_OnRTP1:
+//                    cameraThread.startRTP(0, LINK_HOST);
 
                     break;
                 case R.id.button_StopRTP1:
+//                    cameraThread.stopRTP(0);
 //
                     break;
                 case R.id.button_OnHttp:
@@ -407,6 +428,14 @@ public class MainActivity extends AppCompatActivity {
                                     @Override
                                     public void onTimeout() {
 
+                                    }
+
+                                    @Override
+                                    public void onRequestStreamRtp(String host, int camId) {
+                                        if (cameraThread != null) {
+                                            cameraThread.stopRTP(camId);
+                                            cameraThread.startRTP(camId, host);
+                                        }
                                     }
                                 });
                     }

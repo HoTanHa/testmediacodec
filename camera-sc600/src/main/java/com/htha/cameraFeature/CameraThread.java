@@ -33,7 +33,7 @@ public final class CameraThread {
     private boolean isSendImageStorage = false;
 
     private boolean networkStatus = false;
-    private boolean isAllowCreateImage = true;
+    private boolean isAllowCreateImage = false;//true;
 
     private static ICameraThreadCallback mCallback;
     private CameraSC600 cameraSC600;

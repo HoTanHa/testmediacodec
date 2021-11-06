@@ -122,6 +122,9 @@ public class CameraCsi {
             }
             catch (InterruptedException ignored) {
             }
+            if (CameraSC600.isCameraError()){
+                continue;
+            }
             if (!isGetSub) {
                 frameInfo = qCarCamera.getVideoFrameInfo(inputChannel, byteBufferData);
                 if (frameInfo != null) {
@@ -170,6 +173,12 @@ public class CameraCsi {
         }
         catch (InterruptedException ignored) {
         }
+        byteBufferData_sub.clear();
+        byteBufferData.clear();
+        byteArray = null;
+        byteArray_sub = null;
+
+
         Log.d(TAG, "close: cameraCsi get frame close." + mCamInfo.toString());
     }
 

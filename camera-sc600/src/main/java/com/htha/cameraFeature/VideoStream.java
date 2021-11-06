@@ -163,6 +163,13 @@ public class VideoStream {
 
     }
 
+    public boolean checkStreamHanging(){
+        if (rtmpMuxer!=null){
+            return rtmpMuxer.isHanging();
+        }
+        return false;
+    }
+
     private RTMPMuxer.RTMPMuxerCallback rtmpMuxerCallback = new RTMPMuxer.RTMPMuxerCallback() {
         @Override
         public void onStreamSuccess() {

@@ -9,6 +9,7 @@ import android.view.Surface;
 import com.htha.camera_sc600.CamInfo;
 import com.htha.camera_sc600.CameraCsi;
 import com.htha.camera_sc600.CameraSC600;
+import com.htha.httpServer.HttpServer;
 import com.htha.mylibcommon.CommonFunction;
 import com.htha.mylibcommon.NativeCamera;
 
@@ -245,6 +246,12 @@ public class CameraEncode {
                             }
                         }).start();
                     }
+                    if (videoStream != null && isLiveStream) {
+                        if (videoStream.checkStreamHanging()) {
+                            Log.d(TAG, "run: Stream is hanging.." + camId);
+                            cmdStopStream = true;
+                        }
+                    }
                 }
 
                 try {
@@ -315,8 +322,19 @@ public class CameraEncode {
                     createImage(date);
                     timeNextImage = date.getTime() / 1000 + TIME_IMAGE;
                 }
+                else if (HttpServer.isRunning()) {
+                    timeImageHotspot_t = System.currentTimeMillis();
+                    if (timeImageHotspot_t > (timeImageHotspot + 1500)) {
+                        timeImageHotspot = timeImageHotspot_t;
+                        System.arraycopy(iBuffer, 0, byteImageCopy, 0, iBuffer.length);
+                        ShareImage.getInstance().setImageByte(byteImageCopy, camId, 1280, 720);
+                    }
+                }
             }
         }
+
+        private long timeImageHotspot = 0;
+        private long timeImageHotspot_t = 0;
 
         @Override
         public void onRawDataSub(ByteBuffer buffer) {
@@ -428,6 +446,7 @@ public class CameraEncode {
             Log.e(TAG, "run: Surface to stream is null");
             cmdStopStream = true;
             isStartingStream = false;
+            return;
         }
         nativeCamera.setStreamSurface(surface);
         int tmp = 0;

@@ -146,10 +146,12 @@ public final class CameraSC600 implements IQCarCamInStatusCB {
                 ret = qCarCamera.cameraOpen(numCam, type);
 
                 if (ret == 0) {
+                    isError = false;
                     Log.d(TAG, "CameraSC600:  Open csi " + value + " Success");
                     break;
                 }
                 else {
+                    isError = true;
                     count++;
                     try {
                         Thread.sleep(500);

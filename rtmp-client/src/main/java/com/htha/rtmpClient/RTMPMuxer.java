@@ -123,6 +123,15 @@ public class RTMPMuxer {
         return nIsConnected(rtmpPointer);
     }
 
+    private native boolean nCheckHanging(long rtmpPointer);
+
+    public boolean isHanging() {
+        if ((rtmpPointer == 0) || (!isSetupOk)){
+            return false;
+        }
+        return nCheckHanging(rtmpPointer);
+    }
+
     public interface RTMPMuxerCallback {
         void onStreamSuccess();
 

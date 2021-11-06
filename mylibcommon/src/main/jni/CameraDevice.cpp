@@ -38,9 +38,6 @@ CameraDevice::CameraDevice()
 }
 
 CameraDevice::~CameraDevice() {
-	stopStreamWindow();
-	this->isRunning = false;
-	info_thread.join();
 
 	free(strInfo);
 //	free(bufferInfoY);
@@ -82,7 +79,7 @@ void CameraDevice::create_info_in_image(void *vptr_args) {
 			memset(mCamera->strInfo, 0, 110);
 			snprintf(mCamera->strInfo, 100,
 					 "Cam%d %04d/%02d/%02d %02d:%02d:%02d %s %9.6lf %10.6lf %5.1lfKm/h %s",
-					 camIdTitle , tm.tm_year + 1900, tm.tm_mon + 1, tm.tm_mday, tm.tm_hour,
+					 camIdTitle, tm.tm_year + 1900, tm.tm_mon + 1, tm.tm_mday, tm.tm_hour,
 					 tm.tm_min, tm.tm_sec, CameraDevice::sBsXe, CameraDevice::sLatitude,
 					 CameraDevice::sLongitude, CameraDevice::sSpeeds, CameraDevice::sDriverInfo);
 			length = strlen(mCamera->strInfo);
@@ -136,7 +133,7 @@ void CameraDevice::create_info_in_image(void *vptr_args) {
 
 void CameraDevice::draw_frame_to_surface_stream(void *vptr_args) {
 	auto *mCamera = reinterpret_cast<CameraDevice *>(vptr_args);
-//	mCamera->isStreaming = true;
+
 	ANativeWindow_Buffer buffer;
 	while ((mCamera->isStreaming && mCamera->isRunning)) {
 		usleep(100000);
@@ -201,6 +198,7 @@ void CameraDevice::setMainWindow(ANativeWindow *mainWindow) {
 		loge("Set native window error...%d....%ld", camId, time(NULL));
 	}
 	info_thread = std::thread(create_info_in_image, (void *) this);
+	this->info_thread.detach();
 }
 
 void CameraDevice::setStreamWindow(ANativeWindow *streamWindow) {
@@ -208,12 +206,14 @@ void CameraDevice::setStreamWindow(ANativeWindow *streamWindow) {
 	this->isStreaming = true;
 	ANativeWindow_setBuffersGeometry(mStreamWindow, WIDTH_STREAM, HEIGHT_STREAM, FORMAT_SURFACE);
 	this->drawStream_thread = std::thread(draw_frame_to_surface_stream, (void *) this);
+	this->drawStream_thread.detach();
 }
 
 void CameraDevice::stopStreamWindow() {
 	if (isStreaming) {
 		isStreaming = false;
-		drawStream_thread.join();
+//		drawStream_thread.join();
+		std::this_thread::sleep_for(std::chrono::milliseconds(200));
 	}
 	if (mStreamWindow) {
 		ANativeWindow_release(mStreamWindow);
@@ -267,6 +267,12 @@ long CameraDevice::getTimeS() {
 	long time = this->timeS;
 	this->info_mutex.unlock();
 	return time;
+}
+
+void CameraDevice::close() {
+	stopStreamWindow();
+	this->isRunning = false;
+	std::this_thread::sleep_for(std::chrono::milliseconds(100));
 }
 
 double CameraDevice::sLatitude = 0.0f;
